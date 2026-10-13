@@ -44,6 +44,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D15 | Numero di ring | **Configurabile nel setup iniziale** (default 2, da 1 a 4), fissato all'avvio del torneo | Richiesto dopo il primo rilascio. Con 1–3 ring sono affiancati; con 4 ring in griglia 2×2; su schermi stretti uno sotto l'altro. |
 | D16 | 3° posto | **Opzione nel setup**: "Finale 3° posto" (default) oppure "Due bronzi (IFMA)", cioè entrambi i perdenti delle semifinali 3° ex aequo senza incontro | Ai mondiali IFMA (e nel pugilato olimpico) non si disputa la finale per il 3° posto. |
 | D17 | Distribuzione bye | **Bilanciata** tra le due metà di ogni sotto-tabellone (differenza massima di 1 bye); la metà che riceve il bye dispari è sorteggiata | Allineamento alle procedure di sorteggio IBA/IFMA; evita che una metà arrivi in semifinale tutta "riposata". |
+| D18 | Versione visibile | **Nell'header**, sotto il titolo: `v<versione> · build <n> · <commit> · <data build>` | Per capire quale commit è installato sul tablet. `build` = numero di commit (cresce a ogni commit); se la build contiene modifiche non committate compare "modifiche non committate". |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -119,6 +120,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RNF-09 Lingua**: interfaccia interamente in italiano (`lang="it"`).
 - **RNF-10 Qualità**: logica del torneo isolata in funzioni pure e coperta da test unitari (Vitest); type-check TypeScript nella build; lint con oxlint.
 - **RNF-11 Deploy riproducibile**: GitHub Actions esegue test e build e pubblica su Pages a ogni push su `main`.
+- **RNF-12 Tracciabilità**: la build inietta (`define` in `vite.config.ts` → `__APP_VERSION__`) versione di `package.json`, numero di build (`git rev-list --count HEAD`), hash breve del commit, stato "dirty" e data/ora di compilazione. Il workflow fa checkout con `fetch-depth: 0` per contare tutti i commit.
 
 ### Riferimenti ai regolamenti ufficiali
 - **IFMA** — [Rules & Regulations for International Competition](https://muaythai.sport/wp-content/uploads/2023/04/IFMA-Rules-and-Regulations-v2.04-1.pdf): i bye si sorteggiano nel 1° turno per ridurre il 2° turno a 4, 8, 16 o 32 atleti; chi ha avuto il bye combatte per primo nel 2° turno.
@@ -144,6 +146,7 @@ src/
 ├── App.tsx                   # topbar, tab Ring/Tabellone, "Nuovo torneo"
 ├── index.css                 # stile (tema scuro, touch-first)
 ├── useWakeLock.ts            # Screen Wake Lock durante il torneo
+├── globals.d.ts              # tipo di __APP_VERSION__ (iniettato in build)
 ├── tournament/
 │   ├── types.ts              # modello dati
 │   ├── engine.ts             # logica pura: sorteggio, resolve, ring, vincitore, undo, podio
@@ -154,6 +157,7 @@ src/
     ├── SetupView.tsx         # impostazioni + partecipanti + avvio
     ├── RingView.tsx          # ring in corso, prossimi incontri, ultimi risultati, podio
     ├── Stepper.tsx           # selettore numerico −/+ (riprese, ring)
+    ├── AppVersion.tsx        # versione/build/commit nell'header
     ├── BracketView.tsx       # tabellone completo
     ├── ConfirmDialog.tsx     # dialog di conferma generico
     └── UndoDialog.tsx        # conferma di annullamento risultato
@@ -194,6 +198,7 @@ npm run lint                 # lint
 npm run build                # type-check + build di produzione in dist/
 npm run preview              # serve la build (con service worker)
 npm run generate-pwa-assets  # rigenera le icone da public/favicon.svg
+npm version minor --no-git-tag-version  # incrementa la versione mostrata (opzionale: il numero di build cresce da solo)
 ```
 
 Nota: il service worker (e quindi l'offline e l'installazione) richiede **HTTPS** oppure `localhost`. In LAN via
@@ -222,6 +227,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 
 - ✅ Motore del torneo implementato con 62 test unitari verdi (da 2 a 32 partecipanti, bye solo al 1° turno e bilanciati, finale 3° posto o due bronzi, 1–4 ring, annullamento).
 - ✅ Opzione "Due bronzi (IFMA)" verificata nel browser con 7 partecipanti fino al podio.
+- ✅ Versione/build/commit visibili nell'header (v0.4.0).
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.

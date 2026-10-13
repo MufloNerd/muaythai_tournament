@@ -1,10 +1,32 @@
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const git = (args: string) => {
+  try {
+    return execSync(`git ${args}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return ''
+  }
+}
+
+// Shown in the app header; the build number is the commit count, so it grows with every commit.
+const appVersion = {
+  version: (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version,
+  build: git('rev-list --count HEAD'),
+  commit: git('rev-parse --short HEAD'),
+  dirty: git('status --porcelain') !== '',
+  builtAt: new Date().toISOString(),
+}
 
 // BASE_PATH is set by the GitHub Pages workflow (e.g. "/muaythai-tournament/").
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     VitePWA({

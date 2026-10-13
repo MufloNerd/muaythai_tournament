@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AppVersion } from './components/AppVersion'
 import { BracketView } from './components/BracketView'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { RingView } from './components/RingView'
@@ -18,9 +19,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>
-          <span aria-hidden="true">🥊</span> {t?.name || state.draft.name || 'Torneo Muay Thai'}
-        </h1>
+        <div className="brand">
+          <h1>
+            <span aria-hidden="true">🥊</span> {t?.name || state.draft.name || 'Torneo Muay Thai'}
+          </h1>
+          <AppVersion />
+        </div>
         {t && (
           <>
             <nav className="tabs" aria-label="Viste">
