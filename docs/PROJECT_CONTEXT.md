@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-13 — stato: **MVP implementato e verificato; ring configurabili; regole bye e 3° posto allineate a IFMA/IBA** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-13 — stato: **v0.5.0 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati PDF condivisibili** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -45,6 +45,8 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D16 | 3° posto | **Opzione nel setup**: "Finale 3° posto" (default) oppure "Due bronzi (IFMA)", cioè entrambi i perdenti delle semifinali 3° ex aequo senza incontro | Ai mondiali IFMA (e nel pugilato olimpico) non si disputa la finale per il 3° posto. |
 | D17 | Distribuzione bye | **Bilanciata** tra le due metà di ogni sotto-tabellone (differenza massima di 1 bye); la metà che riceve il bye dispari è sorteggiata | Allineamento alle procedure di sorteggio IBA/IFMA; evita che una metà arrivi in semifinale tutta "riposata". |
 | D18 | Versione visibile | **Nell'header**, sotto il titolo: `v<versione> · build <n> · <commit> · <data build>` | Per capire quale commit è installato sul tablet. `build` = numero di commit (cresce a ogni commit); se la build contiene modifiche non committate compare "modifiche non committate". |
+| D19 | Invio email automatico dei certificati | **Scartato** | Senza backend non si può fare gratis: EmailJS gratuito non supporta allegati; Resend/Cloudflare richiedono server, dominio verificato e chiavi segrete; `mailto:` non allega file. L'utente ha chiesto di non fare nulla in questo caso. |
+| D20 | Certificati di vittoria | **PDF "stile cintura" per il podio, generati sul tablet a fine torneo e condivisi con il pannello di condivisione di sistema (WhatsApp, Telegram, Mail…)**, con pulsante "Scarica" come alternativa | Gratis, offline, nessun dato inviato a terzi dall'app. Un certificato per 1° e 2°, uno per ogni 3° (due con "due bronzi"). |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -66,6 +68,10 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | I14 | Deploy con **GitHub Actions → GitHub Pages**, base path impostato con la variabile `BASE_PATH` | Il workflow imposta `/<nome-repo>/`. In locale la base è `/`. |
 | I15 | **Partecipanti non potenza di 2 (es. dispari)**: tabellone alla potenza di 2 successiva (N→P); P−N bye sorteggiati tutti nel 1° turno, mai bye contro bye; dal 2° turno ogni incontro ha sempre 2 atleti | Esempi: 7→8 (1 bye), 5→8 (3 bye), 6→8 (2 bye), 9→16 (7 bye, 1 solo incontro reale al 1° turno), 12→16 (4 bye). |
 | I16 | Se gli incontri pronti sono meno dei ring, i ring in eccesso restano **in attesa** | Es. semifinali con 4 ring: 2 ring occupati, 2 in attesa. |
+| I17 | PDF scritto **senza librerie**: il certificato è disegnato su canvas (2480×1754 px, JPEG q=0.9) e incapsulato in un PDF 1.4 di una pagina A4 orizzontale (`jpegToPdf`) | Evita ~300 KB+ di dipendenze (jsPDF + html2canvas) nella cache offline; struttura PDF coperta da test (offset xref). File di circa 300–350 KB. |
+| I18 | I PDF vengono **pre-generati** quando compare il podio; il tocco su "Condividi" chiama subito `navigator.share` | Safari blocca la condivisione se passa troppo tempo dal tocco (user activation). |
+| I19 | Condivisione con **solo file + titolo**, senza testo | Su alcune app (es. WhatsApp iOS) file + testo insieme fanno perdere l'allegato. |
+| I20 | Colore della placca: oro (1°), argento (2°), bronzo (3°); cinturone rosso per tutti; data = data dell'ultimo risultato registrato | |
 
 ---
 
@@ -105,6 +111,13 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RF-22** A torneo concluso: podio con 1°, 2° e 3° classificato (due 3° in modalità "due bronzi").
 - **RF-23** "Nuovo torneo" con conferma: elimina il torneo corrente e mantiene i partecipanti.
 
+### Certificati
+- **RF-24** A torneo concluso, sezione "Certificati di vittoria" con anteprima di un certificato per ogni atleta del podio.
+- **RF-25** Certificato "stile cintura": titolo "CERTIFICATO DI VITTORIA", nome del torneo, cintura con placca centrale (MUAY THAI, posizione, CAMPIONE/VICECAMPIONE/TERZO POSTO), nome dell'atleta, posizione e data.
+- **RF-26** "Condividi" (singolo) e "Condividi tutti" aprono il pannello di condivisione del dispositivo con i PDF allegati; visibili solo se il dispositivo supporta la condivisione di file.
+- **RF-27** "Scarica" salva il PDF (nome tipo `Certificato-1-posto-Nome-Cognome.pdf`, senza accenti).
+- **RF-28** I certificati si rigenerano se il podio cambia (es. annullamento della finale).
+
 ---
 
 ## 4. Requisiti non funzionali
@@ -121,6 +134,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RNF-10 Qualità**: logica del torneo isolata in funzioni pure e coperta da test unitari (Vitest); type-check TypeScript nella build; lint con oxlint.
 - **RNF-11 Deploy riproducibile**: GitHub Actions esegue test e build e pubblica su Pages a ogni push su `main`.
 - **RNF-12 Tracciabilità**: la build inietta (`define` in `vite.config.ts` → `__APP_VERSION__`) versione di `package.json`, numero di build (`git rev-list --count HEAD`), hash breve del commit, stato "dirty" e data/ora di compilazione. Il workflow fa checkout con `fetch-depth: 0` per contare tutti i commit.
+- **RNF-13 Condivisione**: Web Share API Level 2 (`navigator.canShare({ files })`), supportata da Safari iOS/iPadOS 15+ e Chrome Android; richiede HTTPS (GitHub Pages). Dove non è supportata resta "Scarica".
 
 ### Riferimenti ai regolamenti ufficiali
 - **IFMA** — [Rules & Regulations for International Competition](https://muaythai.sport/wp-content/uploads/2023/04/IFMA-Rules-and-Regulations-v2.04-1.pdf): i bye si sorteggiano nel 1° turno per ridurre il 2° turno a 4, 8, 16 o 32 atleti; chi ha avuto il bye combatte per primo nel 2° turno.
@@ -133,6 +147,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - Più dispositivi sincronizzati o schermo pubblico separato.
 - Categorie (peso/età/sesso) e teste di serie, palestra/team, metodo di vittoria, punteggi dei giudici.
 - Storico dei tornei, export/import, stampa.
+- Invio automatico di email (vedi D19).
 - Accoppiamenti manuali o spostamento manuale degli incontri tra ring.
 - Correzione a cascata di risultati già "consumati" da incontri successivi.
 
@@ -153,11 +168,18 @@ src/
 │   ├── engine.test.ts        # test unitari (Vitest)
 │   ├── store.ts              # hook useAppState + persistenza localStorage
 │   └── view.ts               # helper di presentazione (nomi, etichette slot, titoli turno)
+├── certificates/
+│   ├── content.ts            # dati del certificato dal podio, testi per posizione, nome file, data
+│   ├── draw.ts               # disegno su canvas della cintura (oro/argento/bronzo)
+│   ├── pdf.ts                # writer PDF minimale (JPEG → PDF A4 orizzontale)
+│   ├── render.ts             # canvas → JPEG → PDF File; share/download
+│   └── certificates.test.ts  # test contenuti, nomi file, struttura PDF
 └── components/
     ├── SetupView.tsx         # impostazioni + partecipanti + avvio
     ├── RingView.tsx          # ring in corso, prossimi incontri, ultimi risultati, podio
     ├── Stepper.tsx           # selettore numerico −/+ (riprese, ring)
     ├── AppVersion.tsx        # versione/build/commit nell'header
+    ├── CertificatesPanel.tsx # anteprime + Condividi/Scarica dei certificati
     ├── BracketView.tsx       # tabellone completo
     ├── ConfirmDialog.tsx     # dialog di conferma generico
     └── UndoDialog.tsx        # conferma di annullamento risultato
@@ -228,6 +250,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Motore del torneo implementato con 62 test unitari verdi (da 2 a 32 partecipanti, bye solo al 1° turno e bilanciati, finale 3° posto o due bronzi, 1–4 ring, annullamento).
 - ✅ Opzione "Due bronzi (IFMA)" verificata nel browser con 7 partecipanti fino al podio.
 - ✅ Versione/build/commit visibili nell'header (v0.4.0).
+- ✅ Certificati PDF stile cintura (v0.5.0): 73 test verdi; PDF validati aprendoli con macOS (PDFKit); condivisione verificata simulando la Web Share API; da provare sul tablet reale con WhatsApp/Telegram.
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.

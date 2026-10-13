@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { canUndo, podium, resolve } from '../tournament/engine'
 import type { Corner, ResolvedMatch, Tournament } from '../tournament/types'
 import { buildView } from '../tournament/view'
+import { CertificatesPanel } from './CertificatesPanel'
 import { ConfirmDialog } from './ConfirmDialog'
 import { UndoDialog } from './UndoDialog'
 
@@ -56,6 +57,8 @@ export function RingView({ tournament: t, onWinner, onUndo }: Props) {
           </ol>
         </section>
       )}
+
+      {result.finished && <CertificatesPanel tournament={t} />}
 
       {!result.finished && (
         <div className="rings" style={{ '--ring-cols': ringColumns(t.rings.length) } as CSSProperties}>
