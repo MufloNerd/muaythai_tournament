@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  balancedByeMatches,
   bracketSize,
   canUndo,
   createTournament,
@@ -20,8 +21,16 @@ const seeded = (seed: number) => () => {
   return (seed - 1) / 2147483646
 }
 
-const make = (n: number, seed = 1, ringCount?: number) =>
-  createTournament({ name: 'Test', roundsPerMatch: 3, fighters: fighters(n), ringCount, rng: seeded(seed), now: 0 })
+const make = (n: number, seed = 1, ringCount?: number, thirdPlaceMatch?: boolean) =>
+  createTournament({
+    name: 'Test',
+    roundsPerMatch: 3,
+    fighters: fighters(n),
+    ringCount,
+    thirdPlaceMatch,
+    rng: seeded(seed),
+    now: 0,
+  })
 
 /** Plays every bout on the rings (red always wins) until nothing is left. */
 function playAll(t: Tournament): Tournament {
@@ -91,9 +100,8 @@ describe('progression', () => {
     expect(p.finished).toBe(true)
     expect(p.first).not.toBeNull()
     expect(p.second).not.toBeNull()
-    if (n >= 4) expect(p.third).not.toBeNull()
-    if (n === 2) expect(p.third).toBeNull()
-    expect(new Set([p.first, p.second, p.third].filter(Boolean)).size).toBe(n === 2 ? 2 : 3)
+    expect(p.third).toHaveLength(n === 2 ? 0 : 1)
+    expect(new Set([p.first, p.second, ...p.third].filter(Boolean)).size).toBe(n === 2 ? 2 : 3)
     expect(t.rings.every((r) => r === null)).toBe(true)
   })
 
@@ -101,7 +109,7 @@ describe('progression', () => {
     const t = playAll(make(3))
     const p = podium(t)
     expect(p.finished).toBe(true)
-    expect(p.third).not.toBeNull()
+    expect(p.third).toHaveLength(1)
   })
 
   it('moves the winner forward and the losers of semifinals to the third-place match', () => {
@@ -128,6 +136,67 @@ describe('progression', () => {
     let t = make(8)
     t = recordWinner(t, 'r0-m1', 'red')
     expect(t.rings).toEqual(['r0-m0', 'r0-m2'])
+  })
+})
+
+describe('balancedByeMatches', () => {
+  /** Byes in the two halves of every sub-bracket differ by at most one. */
+  const isBalanced = (byes: Set<number>, start: number, count: number): boolean => {
+    if (count === 1) return true
+    const half = count / 2
+    const top = [...byes].filter((i) => i >= start && i < start + half).length
+    const bottom = [...byes].filter((i) => i >= start + half && i < start + count).length
+    return Math.abs(top - bottom) <= 1 && isBalanced(byes, start, half) && isBalanced(byes, start + half, half)
+  }
+
+  it.each([
+    [4, 1],
+    [4, 3],
+    [8, 3],
+    [8, 7],
+    [16, 5],
+    [16, 11],
+  ])('balances %i matches with %i byes', (matches, byeCount) => {
+    for (let seed = 1; seed < 30; seed++) {
+      const byes = balancedByeMatches(matches, byeCount, seeded(seed))
+      expect(byes.size).toBe(byeCount)
+      expect([...byes].every((i) => i >= 0 && i < matches)).toBe(true)
+      expect(isBalanced(byes, 0, matches)).toBe(true)
+    }
+  })
+
+  it('randomizes which half receives the extra bye', () => {
+    const halves = new Set<string>()
+    for (let seed = 1; seed < 30; seed++) {
+      const [only] = balancedByeMatches(8, 1, seeded(seed * 7_919_000))
+      halves.add(only < 4 ? 'top' : 'bottom')
+    }
+    expect(halves).toEqual(new Set(['top', 'bottom']))
+  })
+})
+
+describe('two bronzes (no third-place match)', () => {
+  it('does not create a third-place match', () => {
+    expect(make(8, 1, 2, false).matches.some((m) => m.kind === 'third')).toBe(false)
+  })
+
+  it.each([4, 6, 8, 13])('awards third place to both semifinal losers with %i fighters', (n) => {
+    const t = playAll(make(n, n, 2, false))
+    const p = podium(t)
+    expect(p.finished).toBe(true)
+    expect(p.third).toHaveLength(2)
+    expect(new Set([p.first, p.second, ...p.third]).size).toBe(4)
+  })
+
+  it('shows only the bronzes already decided while semifinals are in progress', () => {
+    let t = make(4, 1, 2, false)
+    t = recordWinner(t, 'r0-m0', 'red')
+    expect(podium(t).third).toHaveLength(1)
+    expect(podium(t).finished).toBe(false)
+  })
+
+  it('awards a single bronze with 3 fighters', () => {
+    expect(podium(playAll(make(3, 1, 2, false))).third).toHaveLength(1)
   })
 })
 

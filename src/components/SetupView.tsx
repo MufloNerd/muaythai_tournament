@@ -12,6 +12,11 @@ interface Props {
   onStart: () => void
 }
 
+const THIRD_PLACE_OPTIONS = [
+  { value: true, label: 'Finale 3° posto' },
+  { value: false, label: 'Due bronzi (IFMA)' },
+]
+
 export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -65,6 +70,28 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
             onChange={(ringCount) => onChange({ ringCount })}
           />
         </div>
+        <div className="field">
+          <span>Terzo posto</span>
+          <div className="segmented" role="radiogroup" aria-label="Terzo posto">
+            {THIRD_PLACE_OPTIONS.map((o) => (
+              <button
+                key={o.label}
+                type="button"
+                role="radio"
+                aria-checked={draft.thirdPlaceMatch === o.value}
+                className={draft.thirdPlaceMatch === o.value ? 'active' : ''}
+                onClick={() => onChange({ thirdPlaceMatch: o.value })}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <small className="muted">
+            {draft.thirdPlaceMatch
+              ? 'I perdenti delle semifinali si sfidano per il 3° posto.'
+              : 'Come ai mondiali IFMA: i due perdenti delle semifinali sono entrambi 3° classificati, senza incontro.'}
+          </small>
+        </div>
       </section>
 
       <section className="panel">
@@ -117,7 +144,7 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
             Tabellone da {bracketSize(count)}
             {byes > 0 &&
               ` · ${byes} ${byes === 1 ? 'passaggio del turno (bye) sorteggiato' : 'passaggi del turno (bye) sorteggiati'}`}
-            {count >= 3 && ' · con finale 3° posto'}
+            {count >= 3 && (draft.thirdPlaceMatch ? ' · con finale 3° posto' : ' · due bronzi')}
             {` · ${draft.ringCount} ring`}
           </p>
         )}

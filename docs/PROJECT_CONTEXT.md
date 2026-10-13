@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-13 — stato: **MVP implementato e verificato, numero di ring configurabile** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-13 — stato: **MVP implementato e verificato; ring configurabili; regole bye e 3° posto allineate a IFMA/IBA** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -29,8 +29,8 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 |---|------|-----------|--------------------|
 | D1 | Tipo di applicazione | **PWA (Progressive Web App) offline-first** | Installabile da browser su iPad/Android ("Aggiungi a schermata Home"), si apre a schermo intero, funziona senza internet, nessuno store, nessun server. Eventuale futuro wrapping nativo con Capacitor senza riscrittura. |
 | D2 | Numero di dispositivi | **Un solo tablet gestisce tutti i ring** | Nessuna sincronizzazione né backend necessari. |
-| D3 | Formato torneo | **Eliminazione diretta + finale per il 3° posto** | La finale 3° posto è tra i perdenti delle semifinali. |
-| D4 | Accoppiamenti 1° turno | **Sorteggio casuale automatico, bye assegnati a caso** | Se i partecipanti non sono una potenza di 2, alcuni passano il turno (bye). |
+| D3 | Formato torneo | **Eliminazione diretta** con 3° posto configurabile (vedi D16) | Scelta iniziale: finale 3° posto tra i perdenti delle semifinali. |
+| D4 | Accoppiamenti 1° turno | **Sorteggio casuale automatico, bye sorteggiati e bilanciati** (vedi D17) | Se i partecipanti non sono una potenza di 2, alcuni passano il turno (bye). |
 | D5 | Durata incontri | **Numero di riprese configurabile** nelle impostazioni (riprese da 2' con 1' di pausa) | Default 3, intervallo 1–12. Dato solo informativo. |
 | D6 | Timer | **Nessun timer integrato** | Il tempo è gestito con un cronometro esterno. |
 | D7 | Dati partecipante | **Solo nome e cognome** | Niente palestra/peso/età/categorie. |
@@ -42,6 +42,8 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D13 | Tecnologia | **React + Vite + TypeScript come PWA, pubblicata gratis su GitHub Pages** | L'utente ha chiesto "la miglior soluzione gratis". |
 | D14 | Workspace | `/Users/muflonerd/Projects/muaythai-tournament`, repo git, nessun worktree isolato | |
 | D15 | Numero di ring | **Configurabile nel setup iniziale** (default 2, da 1 a 4), fissato all'avvio del torneo | Richiesto dopo il primo rilascio. Con 1–3 ring sono affiancati; con 4 ring in griglia 2×2; su schermi stretti uno sotto l'altro. |
+| D16 | 3° posto | **Opzione nel setup**: "Finale 3° posto" (default) oppure "Due bronzi (IFMA)", cioè entrambi i perdenti delle semifinali 3° ex aequo senza incontro | Ai mondiali IFMA (e nel pugilato olimpico) non si disputa la finale per il 3° posto. |
+| D17 | Distribuzione bye | **Bilanciata** tra le due metà di ogni sotto-tabellone (differenza massima di 1 bye); la metà che riceve il bye dispari è sorteggiata | Allineamento alle procedure di sorteggio IBA/IFMA; evita che una metà arrivi in semifinale tutta "riposata". |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -49,11 +51,11 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 |---|-----------|-------------|
 | I1 | Storage in **`localStorage`** (chiave `muaythai-tournament:v1`) anziché IndexedDB | Dati piccoli, API sincrona, più semplice. La chiave è versionata per migrazioni future. |
 | I2 | **Stato derivato**: si salvano solo struttura del tabellone + risultati + assegnazione ring; tutto il resto (chi avanza, bye, stati) è calcolato da `resolve()` | Annullare un risultato = rimuoverlo; nessun rischio di stati incoerenti. |
-| I3 | I bye **non si affrontano mai tra loro** al 1° turno; il fighter in bye è messo a caso in angolo rosso o blu | Ogni incontro del 1° turno ha almeno un atleta. |
+| I3 | I bye **non si affrontano mai tra loro** al 1° turno e sono distribuiti con `balancedByeMatches` (divisione ricorsiva metà alta/bassa); l'atleta con il bye è messo a caso in angolo rosso o blu | Ogni incontro del 1° turno ha almeno un atleta; tabellone equilibrato. |
 | I4 | Ordine di gioco: per turno, poi per posizione; **la finale 3° posto precede la finale** | Con 2 o più ring, finale 3° posto e finale si disputano in contemporanea. |
 | I5 | Numerazione progressiva ("Incontro N") **solo per gli incontri reali**, escludendo i bye | Il numero è usato nei riferimenti "Vincente inc. N" / "Perdente inc. N". |
-| I6 | Con 3 partecipanti il 3° posto è assegnato **automaticamente** (unico perdente di semifinale) | La semifinale con bye non produce un perdente. |
-| I7 | Con 2 partecipanti: solo la finale, **nessuna finale 3° posto** | |
+| I6 | Con 3 partecipanti il 3° posto è assegnato **automaticamente** (unico perdente di semifinale); con "due bronzi" c'è un solo bronzo | La semifinale con bye non produce un perdente. |
+| I7 | Con 2 partecipanti: solo la finale, **nessun 3° posto** | |
 | I8 | Annullando un risultato, l'incontro **torna sul ring dove era** (se libero) e l'incontro successivo dipendente viene tolto dal ring | Comportamento atteso dall'operatore. |
 | I9 | "Nuovo torneo" elimina tabellone e risultati ma **mantiene l'elenco partecipanti** | Utile per ripetere o correggere rapidamente. |
 | I10 | **Screen Wake Lock** attivo durante il torneo (dove supportato) | Il tablet non va in standby tra un incontro e l'altro. |
@@ -79,9 +81,9 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 
 ### Sorteggio e tabellone
 - **RF-07** Sorteggio casuale degli accoppiamenti del 1° turno.
-- **RF-08** Tabellone dimensionato alla potenza di 2 successiva; i bye sono assegnati casualmente e chi ha il bye avanza automaticamente.
+- **RF-08** Tabellone dimensionato alla potenza di 2 successiva; i bye sono sorteggiati, bilanciati tra le metà del tabellone, e chi ha il bye avanza automaticamente.
 - **RF-09** Eliminazione diretta: il vincitore avanza al turno successivo.
-- **RF-10** Finale 3° posto tra i perdenti delle semifinali (se esistono semifinali).
+- **RF-10** 3° posto configurabile: finale 3° posto tra i perdenti delle semifinali, oppure due bronzi ex aequo senza incontro (se esistono semifinali).
 - **RF-11** Nomi dei turni: 1° turno / Sedicesimi / Ottavi / Quarti di finale / Semifinali / Finale / Finale 3° posto.
 
 ### Gestione ring e incontri
@@ -99,7 +101,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 
 ### Tabellone e conclusione
 - **RF-21** Tabellone completo per colonne/turni, scorrevole in orizzontale, con vincitori evidenziati, perdenti barrati, bye ("passa il turno") e badge del ring per gli incontri in corso.
-- **RF-22** A torneo concluso: podio con 1°, 2° e 3° classificato.
+- **RF-22** A torneo concluso: podio con 1°, 2° e 3° classificato (due 3° in modalità "due bronzi").
 - **RF-23** "Nuovo torneo" con conferma: elimina il torneo corrente e mantiene i partecipanti.
 
 ---
@@ -118,10 +120,16 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RNF-10 Qualità**: logica del torneo isolata in funzioni pure e coperta da test unitari (Vitest); type-check TypeScript nella build; lint con oxlint.
 - **RNF-11 Deploy riproducibile**: GitHub Actions esegue test e build e pubblica su Pages a ogni push su `main`.
 
+### Riferimenti ai regolamenti ufficiali
+- **IFMA** — [Rules & Regulations for International Competition](https://muaythai.sport/wp-content/uploads/2023/04/IFMA-Rules-and-Regulations-v2.04-1.pdf): i bye si sorteggiano nel 1° turno per ridurre il 2° turno a 4, 8, 16 o 32 atleti; chi ha avuto il bye combatte per primo nel 2° turno.
+- **IFMA World Championships**: nessuna finale per il 3° posto, due bronzi ai perdenti delle semifinali ([resoconto USA Muaythai 2023](https://usamuaythai.sport/2023-ifma-world-championships-recap/)).
+- **IBA (pugilato)** — [Technical & Competition Rules](https://www.iba.sport/wp-content/uploads/2023/04/20230513-IBA-Technical-Competition-Rules29.pdf): bye nel 1° turno distribuiti in modo bilanciato tra metà alta e metà bassa del tabellone.
+- Fonti individuate tramite ricerca web; i PDF non sono stati consultati direttamente.
+
 ### Fuori ambito (esplicitamente escluso)
 - Timer o cronometro delle riprese, suoni.
 - Più dispositivi sincronizzati o schermo pubblico separato.
-- Categorie (peso/età/sesso), palestra/team, metodo di vittoria, punteggi dei giudici.
+- Categorie (peso/età/sesso) e teste di serie, palestra/team, metodo di vittoria, punteggi dei giudici.
 - Storico dei tornei, export/import, stampa.
 - Accoppiamenti manuali o spostamento manuale degli incontri tra ring.
 - Correzione a cascata di risultati già "consumati" da incontri successivi.
@@ -212,7 +220,8 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 
 ## 8. Stato attuale
 
-- ✅ Motore del torneo implementato con 48 test unitari verdi (da 2 a 32 partecipanti, bye solo al 1° turno, finale 3° posto, 1–4 ring, annullamento).
+- ✅ Motore del torneo implementato con 62 test unitari verdi (da 2 a 32 partecipanti, bye solo al 1° turno e bilanciati, finale 3° posto o due bronzi, 1–4 ring, annullamento).
+- ✅ Opzione "Due bronzi (IFMA)" verificata nel browser con 7 partecipanti fino al podio.
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.

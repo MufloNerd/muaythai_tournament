@@ -8,6 +8,8 @@ export interface Draft {
   name: string
   roundsPerMatch: number
   ringCount: number
+  /** false = two bronzes (both semifinal losers share third place). */
+  thirdPlaceMatch: boolean
   fighters: Fighter[]
 }
 
@@ -17,7 +19,7 @@ export interface AppState {
 }
 
 const initialState: AppState = {
-  draft: { name: '', roundsPerMatch: 3, ringCount: RING_COUNT, fighters: [] },
+  draft: { name: '', roundsPerMatch: 3, ringCount: RING_COUNT, thirdPlaceMatch: true, fighters: [] },
   tournament: null,
 }
 
@@ -67,6 +69,7 @@ export function useAppState() {
         name: s.draft.name,
         roundsPerMatch: s.draft.roundsPerMatch,
         ringCount: s.draft.ringCount,
+        thirdPlaceMatch: s.draft.thirdPlaceMatch,
         fighters: s.draft.fighters,
       }),
     }))

@@ -61,19 +61,52 @@ export function roundName(round: number, totalRounds: number, kind: MatchDef['ki
 }
 
 /**
- * Builds a single-elimination bracket with random draw and random bye placement.
+ * Picks which first-round matches get a bye, balancing them between the two halves of every
+ * sub-bracket (as in IBA/IFMA draws). When a split is odd, the half receiving the extra bye is random.
+ */
+export function balancedByeMatches(matchCount: number, byeCount: number, rng: Rng = Math.random): Set<number> {
+  if (byeCount > matchCount) throw new Error('Troppi bye')
+  const out = new Set<number>()
+  const place = (start: number, count: number, byes: number) => {
+    if (byes === 0) return
+    if (count === 1) {
+      out.add(start)
+      return
+    }
+    const half = count / 2
+    const extraOnTop = byes % 2 === 1 && rng() < 0.5
+    const top = Math.floor(byes / 2) + (extraOnTop ? 1 : 0)
+    place(start, half, top)
+    place(start + half, half, byes - top)
+  }
+  place(0, matchCount, byeCount)
+  return out
+}
+
+/**
+ * Builds a single-elimination bracket with random draw and balanced random bye placement.
  * Byes never face each other, so every first-round match has at least one fighter.
- * A third-place match (semifinal losers) is added when the bracket has semifinals.
+ * When the bracket has semifinals, either a third-place match is added or both semifinal
+ * losers share third place (two bronzes, IFMA style).
  */
 export function createTournament(params: {
   name: string
   roundsPerMatch: number
   fighters: Fighter[]
   ringCount?: number
+  thirdPlaceMatch?: boolean
   rng?: Rng
   now?: number
 }): Tournament {
-  const { name, roundsPerMatch, fighters, ringCount = RING_COUNT, rng = Math.random, now = Date.now() } = params
+  const {
+    name,
+    roundsPerMatch,
+    fighters,
+    ringCount = RING_COUNT,
+    thirdPlaceMatch = true,
+    rng = Math.random,
+    now = Date.now(),
+  } = params
   if (fighters.length < 2) throw new Error('Servono almeno 2 partecipanti')
   if (!Number.isInteger(ringCount) || ringCount < MIN_RINGS || ringCount > MAX_RINGS) {
     throw new Error(`Il numero di ring deve essere tra ${MIN_RINGS} e ${MAX_RINGS}`)
@@ -82,7 +115,7 @@ export function createTournament(params: {
   const size = bracketSize(fighters.length)
   const firstRoundMatches = size / 2
   const byeCount = size - fighters.length
-  const byeMatches = new Set(shuffle([...Array(firstRoundMatches).keys()], rng).slice(0, byeCount))
+  const byeMatches = balancedByeMatches(firstRoundMatches, byeCount, rng)
   const drawn = shuffle(fighters, rng)
 
   const matches: MatchDef[] = []
@@ -98,7 +131,7 @@ export function createTournament(params: {
   const totalRounds = Math.log2(size)
   for (let r = 1; r < totalRounds; r++) {
     const count = size / 2 ** (r + 1)
-    if (count === 1 && totalRounds >= 2) {
+    if (count === 1 && thirdPlaceMatch) {
       matches.push({
         id: 'third',
         round: r,
@@ -270,7 +303,8 @@ export interface Podium {
   finished: boolean
   first: string | null
   second: string | null
-  third: string | null
+  /** Winner of the third-place match, or both semifinal losers when third place is shared. */
+  third: string[]
 }
 
 export function podium(t: Tournament): Podium {
@@ -280,10 +314,14 @@ export function podium(t: Tournament): Podium {
   const third = resolved.find((m) => m.def.kind === 'third')
   const finalDone = final?.status === 'done' || final?.status === 'bye'
   const thirdDone = !third || third.status === 'done' || third.status === 'bye' || third.status === 'void'
+  const semifinals = resolved.filter((m) => m.def.kind === 'main' && m.def.round === totalRounds - 2)
+  const thirdPlace = third
+    ? [third.winnerId]
+    : semifinals.map((m) => (m.status === 'done' ? m.loserId : null))
   return {
     finished: !!finalDone && thirdDone,
     first: finalDone ? final!.winnerId : null,
     second: finalDone ? final!.loserId : null,
-    third: third?.winnerId ?? null,
+    third: thirdPlace.filter((id): id is string => id !== null),
   }
 }

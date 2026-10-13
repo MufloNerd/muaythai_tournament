@@ -98,6 +98,31 @@ h3 {
   color: #000;
 }
 
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-self: flex-start;
+  background: var(--panel-2);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.segmented button {
+  border: 0;
+  background: transparent;
+  min-height: 44px;
+  padding: 8px 18px;
+  border-radius: 9px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.segmented button.active {
+  background: var(--text);
+  color: #000;
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   border: 1px solid transparent;

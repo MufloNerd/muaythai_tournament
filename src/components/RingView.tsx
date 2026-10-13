@@ -48,11 +48,11 @@ export function RingView({ tournament: t, onWinner, onUndo }: Props) {
             <li className="silver">
               <span className="medal">2°</span> {view.name(result.second)}
             </li>
-            {result.third && (
-              <li className="bronze">
-                <span className="medal">3°</span> {view.name(result.third)}
+            {result.third.map((id) => (
+              <li key={id} className="bronze">
+                <span className="medal">3°</span> {view.name(id)}
               </li>
-            )}
+            ))}
           </ol>
         </section>
       )}
