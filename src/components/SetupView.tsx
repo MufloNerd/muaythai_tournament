@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from 'react'
 import type { Draft } from '../tournament/store'
-import { bracketSize, fighterName } from '../tournament/engine'
+import { bracketSize, fighterName, MAX_RINGS, MIN_RINGS } from '../tournament/engine'
 import { ConfirmDialog } from './ConfirmDialog'
+import { Stepper } from './Stepper'
 
 interface Props {
   draft: Draft
@@ -30,8 +31,6 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
     firstNameRef.current?.focus()
   }
 
-  const setRounds = (n: number) => onChange({ roundsPerMatch: Math.min(12, Math.max(1, n)) })
-
   return (
     <main className="setup">
       <section className="panel">
@@ -46,16 +45,25 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
         </label>
         <div className="field">
           <span>Riprese per incontro</span>
-          <div className="stepper">
-            <button type="button" className="btn btn-ghost" onClick={() => setRounds(draft.roundsPerMatch - 1)}>
-              −
-            </button>
-            <output>{draft.roundsPerMatch}</output>
-            <button type="button" className="btn btn-ghost" onClick={() => setRounds(draft.roundsPerMatch + 1)}>
-              +
-            </button>
-            <small>da 2' con 1' di pausa</small>
-          </div>
+          <Stepper
+            label="riprese per incontro"
+            value={draft.roundsPerMatch}
+            min={1}
+            max={12}
+            hint="da 2' con 1' di pausa"
+            onChange={(roundsPerMatch) => onChange({ roundsPerMatch })}
+          />
+        </div>
+        <div className="field">
+          <span>Numero di ring</span>
+          <Stepper
+            label="numero di ring"
+            value={draft.ringCount}
+            min={MIN_RINGS}
+            max={MAX_RINGS}
+            hint={draft.ringCount === 1 ? 'un incontro alla volta' : `${draft.ringCount} incontri in contemporanea`}
+            onChange={(ringCount) => onChange({ ringCount })}
+          />
         </div>
       </section>
 
@@ -107,8 +115,10 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
         {count >= 2 && (
           <p className="muted">
             Tabellone da {bracketSize(count)}
-            {byes > 0 && ` · ${byes} ${byes === 1 ? 'passaggio' : 'passaggi'} del turno (bye) sorteggiati`}
+            {byes > 0 &&
+              ` · ${byes} ${byes === 1 ? 'passaggio del turno (bye) sorteggiato' : 'passaggi del turno (bye) sorteggiati'}`}
             {count >= 3 && ' · con finale 3° posto'}
+            {` · ${draft.ringCount} ring`}
           </p>
         )}
         <button
@@ -133,8 +143,8 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
           }}
         >
           <p>
-            Verrà effettuato il sorteggio casuale di {count} partecipanti. Dopo l'avvio non sarà possibile modificare
-            l'elenco.
+            Verrà effettuato il sorteggio casuale di {count} partecipanti su {draft.ringCount} ring. Dopo l'avvio non
+            sarà possibile modificare l'elenco né il numero di ring.
           </p>
         </ConfirmDialog>
       )}

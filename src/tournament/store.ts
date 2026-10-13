@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createTournament, makeId, recordWinner, undoResult } from './engine'
+import { createTournament, makeId, RING_COUNT, recordWinner, undoResult } from './engine'
 import type { Corner, Fighter, Tournament } from './types'
 
 const STORAGE_KEY = 'muaythai-tournament:v1'
@@ -7,6 +7,7 @@ const STORAGE_KEY = 'muaythai-tournament:v1'
 export interface Draft {
   name: string
   roundsPerMatch: number
+  ringCount: number
   fighters: Fighter[]
 }
 
@@ -16,7 +17,7 @@ export interface AppState {
 }
 
 const initialState: AppState = {
-  draft: { name: '', roundsPerMatch: 3, fighters: [] },
+  draft: { name: '', roundsPerMatch: 3, ringCount: RING_COUNT, fighters: [] },
   tournament: null,
 }
 
@@ -65,6 +66,7 @@ export function useAppState() {
       tournament: createTournament({
         name: s.draft.name,
         roundsPerMatch: s.draft.roundsPerMatch,
+        ringCount: s.draft.ringCount,
         fighters: s.draft.fighters,
       }),
     }))

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { canUndo, podium, resolve } from '../tournament/engine'
 import type { Corner, ResolvedMatch, Tournament } from '../tournament/types'
 import { buildView } from '../tournament/view'
@@ -12,6 +12,9 @@ interface Props {
 }
 
 const CORNER_LABEL: Record<Corner, string> = { red: 'angolo rosso', blue: 'angolo blu' }
+
+/** 1–3 rings side by side; 4 rings as a 2×2 grid. */
+const ringColumns = (count: number) => (count === 4 ? 2 : count)
 
 export function RingView({ tournament: t, onWinner, onUndo }: Props) {
   const resolved = useMemo(() => resolve(t), [t])
@@ -55,7 +58,7 @@ export function RingView({ tournament: t, onWinner, onUndo }: Props) {
       )}
 
       {!result.finished && (
-        <div className="rings">
+        <div className="rings" style={{ '--ring-cols': ringColumns(t.rings.length) } as CSSProperties}>
           {t.rings.map((matchId, ringIndex) => {
             const match = matchId ? view.byId.get(matchId) : undefined
             return (

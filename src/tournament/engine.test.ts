@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bracketSize,
   canUndo,
   createTournament,
   podium,
@@ -19,8 +20,8 @@ const seeded = (seed: number) => () => {
   return (seed - 1) / 2147483646
 }
 
-const make = (n: number, seed = 1) =>
-  createTournament({ name: 'Test', roundsPerMatch: 3, fighters: fighters(n), rng: seeded(seed), now: 0 })
+const make = (n: number, seed = 1, ringCount?: number) =>
+  createTournament({ name: 'Test', roundsPerMatch: 3, fighters: fighters(n), ringCount, rng: seeded(seed), now: 0 })
 
 /** Plays every bout on the rings (red always wins) until nothing is left. */
 function playAll(t: Tournament): Tournament {
@@ -64,6 +65,16 @@ describe('createTournament', () => {
     expect(t.rings).toEqual(['r0-m0', 'r0-m1'])
   })
 
+  it.each([3, 5, 7, 9, 13])('with %i fighters puts byes only in the first round', (n) => {
+    for (let seed = 1; seed < 20; seed++) {
+      const t = make(n, seed)
+      const resolved = resolve(t)
+      const byes = resolved.filter((m) => m.status === 'bye' && m.def.kind === 'main')
+      expect(byes).toHaveLength(bracketSize(n) - n)
+      expect(byes.every((m) => m.def.round === 0)).toBe(true)
+    }
+  })
+
   it('numbers only real bouts', () => {
     const resolved = resolve(make(5))
     const numbered = resolved.filter((m) => m.number !== null)
@@ -83,7 +94,7 @@ describe('progression', () => {
     if (n >= 4) expect(p.third).not.toBeNull()
     if (n === 2) expect(p.third).toBeNull()
     expect(new Set([p.first, p.second, p.third].filter(Boolean)).size).toBe(n === 2 ? 2 : 3)
-    expect(t.rings).toEqual([null, null])
+    expect(t.rings.every((r) => r === null)).toBe(true)
   })
 
   it('awards third place automatically with 3 fighters', () => {
@@ -117,6 +128,31 @@ describe('progression', () => {
     let t = make(8)
     t = recordWinner(t, 'r0-m1', 'red')
     expect(t.rings).toEqual(['r0-m0', 'r0-m2'])
+  })
+})
+
+describe('ring count', () => {
+  it('defaults to 2 rings', () => {
+    expect(make(8).rings).toHaveLength(2)
+  })
+
+  it.each([1, 3, 4])('fills %i rings with the first ready bouts', (rings) => {
+    const t = make(16, 1, rings)
+    expect(t.rings).toEqual(Array.from({ length: rings }, (_, i) => `r0-m${i}`))
+  })
+
+  it('leaves extra rings idle when fewer bouts are ready', () => {
+    const t = make(4, 1, 4)
+    expect(t.rings).toEqual(['r0-m0', 'r0-m1', null, null])
+  })
+
+  it('completes a tournament with a single ring', () => {
+    const p = podium(playAll(make(11, 3, 1)))
+    expect(p.finished).toBe(true)
+  })
+
+  it.each([0, 5, 1.5])('rejects %s rings', (rings) => {
+    expect(() => make(8, 1, rings)).toThrow()
   })
 })
 

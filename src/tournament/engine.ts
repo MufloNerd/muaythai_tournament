@@ -9,6 +9,8 @@ import type {
 } from './types'
 
 export const RING_COUNT = 2
+export const MIN_RINGS = 1
+export const MAX_RINGS = 4
 
 export type Rng = () => number
 
@@ -67,11 +69,15 @@ export function createTournament(params: {
   name: string
   roundsPerMatch: number
   fighters: Fighter[]
+  ringCount?: number
   rng?: Rng
   now?: number
 }): Tournament {
-  const { name, roundsPerMatch, fighters, rng = Math.random, now = Date.now() } = params
+  const { name, roundsPerMatch, fighters, ringCount = RING_COUNT, rng = Math.random, now = Date.now() } = params
   if (fighters.length < 2) throw new Error('Servono almeno 2 partecipanti')
+  if (!Number.isInteger(ringCount) || ringCount < MIN_RINGS || ringCount > MAX_RINGS) {
+    throw new Error(`Il numero di ring deve essere tra ${MIN_RINGS} e ${MAX_RINGS}`)
+  }
 
   const size = bracketSize(fighters.length)
   const firstRoundMatches = size / 2
@@ -120,7 +126,7 @@ export function createTournament(params: {
     fighters,
     matches,
     results: {},
-    rings: Array(RING_COUNT).fill(null),
+    rings: Array(ringCount).fill(null),
     startedAt: now,
   })
 }

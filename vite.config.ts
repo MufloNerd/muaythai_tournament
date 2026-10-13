@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'Torneo Muay Thai',
         short_name: 'Muay Thai',
-        description: 'Gestione torneo di Muay Thai a eliminazione diretta con 2 ring',
+        description: 'Gestione torneo di Muay Thai a eliminazione diretta su più ring',
         lang: 'it',
         theme_color: '#0b0c0f',
         background_color: '#111317',
