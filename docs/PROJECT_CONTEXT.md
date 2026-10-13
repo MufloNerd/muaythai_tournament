@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-13 — stato: **v0.5.0 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati PDF condivisibili** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-13 — stato: **v0.5.1 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati PDF condivisibili; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -47,6 +47,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D18 | Versione visibile | **Nell'header**, sotto il titolo: `v<versione> · build <n> · <commit> · <data build>` | Per capire quale commit è installato sul tablet. `build` = numero di commit (cresce a ogni commit); se la build contiene modifiche non committate compare "modifiche non committate". |
 | D19 | Invio email automatico dei certificati | **Scartato** | Senza backend non si può fare gratis: EmailJS gratuito non supporta allegati; Resend/Cloudflare richiedono server, dominio verificato e chiavi segrete; `mailto:` non allega file. L'utente ha chiesto di non fare nulla in questo caso. |
 | D20 | Certificati di vittoria | **PDF "stile cintura" per il podio, generati sul tablet a fine torneo e condivisi con il pannello di condivisione di sistema (WhatsApp, Telegram, Mail…)**, con pulsante "Scarica" come alternativa | Gratis, offline, nessun dato inviato a terzi dall'app. Un certificato per 1° e 2°, uno per ogni 3° (due con "due bronzi"). |
+| D21 | Supporto smartphone | **Layout verificato e ottimizzato per iPhone 17** (402×874 pt, verticale e orizzontale) oltre che per tablet | Richiesto dall'utente. Su telefono: header su due righe (titolo+versione, poi schede e "Nuovo torneo"), ring compatti per vederne due senza scorrere, colonne del tabellone più strette. |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -126,7 +127,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RNF-02 Offline**: service worker (Workbox, `generateSW`, `autoUpdate`) che mette in cache tutti gli asset; dopo il primo caricamento funziona senza rete.
 - **RNF-03 Persistenza**: lo stato è salvato in `localStorage` a ogni modifica e ripristinato all'apertura; sopravvive a chiusura e ricarica.
 - **RNF-04 Nessun backend** e nessun costo di esercizio (hosting gratuito su GitHub Pages).
-- **RNF-05 Usabilità touch**: aree di tocco ≥ 48px, pulsanti degli atleti ≥ 110px, ring affiancati (1–3 colonne, 2×2 con 4 ring) e in una colonna su schermi ≤ 760px, safe-area per i dispositivi con notch.
+- **RNF-05 Usabilità touch**: tutti i controlli ≥ 44×44 pt (linee guida Apple), pulsanti degli atleti ≥ 84 pt su telefono e ≥ 110 pt su tablet; ring affiancati (1–3 colonne, 2×2 con 4 ring) e in colonna sotto i 760 px; header su due righe sotto i 600 px; padding per le safe area (Dynamic Island in orizzontale, home indicator, notch); input ≥ 16 px per evitare lo zoom automatico di iOS.
 - **RNF-06 Leggibilità**: tema scuro ad alto contrasto, nomi grandi, codifica colore rosso/blu coerente.
 - **RNF-07 Prevenzione errori**: ogni azione rilevante o distruttiva (avvio, vincitore, annullamento, nuovo torneo) richiede conferma.
 - **RNF-08 Schermo sempre acceso** durante il torneo tramite Wake Lock API (se supportata; altrimenti degrada senza errori).
@@ -251,6 +252,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Opzione "Due bronzi (IFMA)" verificata nel browser con 7 partecipanti fino al podio.
 - ✅ Versione/build/commit visibili nell'header (v0.4.0).
 - ✅ Certificati PDF stile cintura (v0.5.0): 73 test verdi; PDF validati aprendoli con macOS (PDFKit); condivisione verificata simulando la Web Share API; da provare sul tablet reale con WhatsApp/Telegram.
+- ✅ Verifica mobile iPhone 17 (v0.5.1) con Playwright **WebKit** (402×874, DPR 3, touch) su tutte le schermate, in verticale e in orizzontale: nessun overflow orizzontale, nessun controllo sotto 44 pt, nessun testo sotto 12 px; tablet 1180×820 invariato. Le safe area reali (Dynamic Island) non sono emulabili: da confermare sul dispositivo.
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.
