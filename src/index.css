@@ -791,12 +791,24 @@ input:focus {
 
 /* ---------- Certificates ---------- */
 .certificates-head {
+  margin-bottom: 12px;
+}
+
+.certificate-group + .certificate-group {
+  margin-top: 20px;
+}
+
+.certificate-group-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+}
+
+.certificate-group-head h3 {
+  font-size: 1rem;
 }
 
 .certificates-head h2 {

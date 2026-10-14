@@ -1,5 +1,5 @@
-import { PLACE_INFO, certificateFileName, type CertificateEntry } from './content'
-import { CERT_HEIGHT, CERT_WIDTH, drawCertificate } from './draw'
+import { PLACE_INFO, certificateFileName, certificateTitle, type CertificateEntry } from './content'
+import { CERT_HEIGHT, CERT_WIDTH, drawCertificateBackground, drawCertificateContent } from './draw'
 import { jpegToPdf } from './pdf'
 
 export interface RenderedCertificate {
@@ -14,18 +14,38 @@ const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Impossibile generare l’immagine'))), type, quality),
   )
 
-export async function renderCertificate(entry: CertificateEntry): Promise<RenderedCertificate> {
+function newCanvas() {
   const canvas = document.createElement('canvas')
   canvas.width = CERT_WIDTH
   canvas.height = CERT_HEIGHT
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas non supportato')
-  drawCertificate(ctx, entry)
+  return { canvas, ctx }
+}
 
-  const jpegBlob = await toBlob(canvas, 'image/jpeg', 0.9)
+let background: HTMLCanvasElement | null = null
+
+/** The shared background is drawn once per session and copied into every certificate. */
+function sharedBackground(): HTMLCanvasElement {
+  if (!background) {
+    const { canvas, ctx } = newCanvas()
+    drawCertificateBackground(ctx)
+    background = canvas
+  }
+  return background
+}
+
+export async function renderCertificate(entry: CertificateEntry): Promise<RenderedCertificate> {
+  const { canvas, ctx } = newCanvas()
+  ctx.drawImage(sharedBackground(), 0, 0)
+  drawCertificateContent(ctx, entry)
+
+  const jpegBlob = await toBlob(canvas, 'image/jpeg', 0.88)
+  canvas.width = canvas.height = 0 // release memory early on iOS
   const jpeg = new Uint8Array(await jpegBlob.arrayBuffer())
+  const subtitle = entry.kind === 'winner' ? PLACE_INFO[entry.place].line : 'Partecipante'
   const pdf = jpegToPdf(jpeg, CERT_WIDTH, CERT_HEIGHT, {
-    title: `Certificato di vittoria – ${entry.fighterName} – ${PLACE_INFO[entry.place].line}`,
+    title: `${certificateTitle(entry)} – ${entry.fighterName} – ${subtitle}`,
   })
   const file = new File([pdf as BlobPart], certificateFileName(entry), { type: 'application/pdf' })
   return { entry, file, previewUrl: URL.createObjectURL(jpegBlob) }

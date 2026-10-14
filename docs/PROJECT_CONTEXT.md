@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-13 — stato: **v0.5.1 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati PDF condivisibili; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-14 — stato: **v0.6.0 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -48,6 +48,8 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D19 | Invio email automatico dei certificati | **Scartato** | Senza backend non si può fare gratis: EmailJS gratuito non supporta allegati; Resend/Cloudflare richiedono server, dominio verificato e chiavi segrete; `mailto:` non allega file. L'utente ha chiesto di non fare nulla in questo caso. |
 | D20 | Certificati di vittoria | **PDF "stile cintura" per il podio, generati sul tablet a fine torneo e condivisi con il pannello di condivisione di sistema (WhatsApp, Telegram, Mail…)**, con pulsante "Scarica" come alternativa | Gratis, offline, nessun dato inviato a terzi dall'app. Un certificato per 1° e 2°, uno per ogni 3° (due con "due bronzi"). |
 | D21 | Supporto smartphone | **Layout verificato e ottimizzato per iPhone 17** (402×874 pt, verticale e orizzontale) oltre che per tablet | Richiesto dall'utente. Su telefono: header su due righe (titolo+versione, poi schede e "Nuovo torneo"), ring compatti per vederne due senza scorrere, colonne del tabellone più strette. |
+| D22 | Attestati di partecipazione | **Un attestato PDF per ogni partecipante non sul podio**, oltre ai certificati di vittoria | Richiesto dall'utente: nessuno torna a casa a mani vuote. |
+| D23 | Stile dei certificati | **Pergamena con inchiostro marrone scuro e Sak Yant** (tigre Suea a sinistra, Erawan a tre teste a destra, Unalom, scrittura decorativa in stile Khom), come la locandina dell'evento | Scelta dell'utente tra 3 opzioni. Le figure sono disegnate in vettoriale (originali, non ritagliate dalla locandina) per restare nitide alla risoluzione di stampa. Vincitori: cintura oro/argento/bronzo al centro. Partecipanti: Mongkhon rosso e bianco con "มวยไทย" e nastro "PARTECIPANTE". |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -72,7 +74,9 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | I17 | PDF scritto **senza librerie**: il certificato è disegnato su canvas (2480×1754 px, JPEG q=0.9) e incapsulato in un PDF 1.4 di una pagina A4 orizzontale (`jpegToPdf`) | Evita ~300 KB+ di dipendenze (jsPDF + html2canvas) nella cache offline; struttura PDF coperta da test (offset xref). File di circa 300–350 KB. |
 | I18 | I PDF vengono **pre-generati** quando compare il podio; il tocco su "Condividi" chiama subito `navigator.share` | Safari blocca la condivisione se passa troppo tempo dal tocco (user activation). |
 | I19 | Condivisione con **solo file + titolo**, senza testo | Su alcune app (es. WhatsApp iOS) file + testo insieme fanno perdere l'allegato. |
-| I20 | Colore della placca: oro (1°), argento (2°), bronzo (3°); cinturone rosso per tutti; data = data dell'ultimo risultato registrato | |
+| I20 | Placca della cintura oro (1°), argento (2°), bronzo (3°) su cinturone rosso; data = data dell'ultimo risultato registrato; partecipanti ordinati per cognome e poi nome | |
+| I21 | Lo sfondo comune (pergamena, cornice, pannelli Sak Yant) viene disegnato **una sola volta** e copiato in ogni certificato; i certificati compaiono **uno alla volta** (prima il podio) e il canvas viene liberato subito dopo l'esportazione | Prestazioni e memoria su iPhone/iPad con 30+ atleti. Misurato: 10 PDF in ~0,35 s su WebKit desktop. |
+| I22 | Il testo "มวยไทย" (Muay Thai in thai) usa i font di sistema Thonburi (Apple) o Noto Sans Thai / Leelawadee (Android/Windows) | Nessun font da scaricare; resta leggibile offline. |
 
 ---
 
@@ -113,10 +117,11 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RF-23** "Nuovo torneo" con conferma: elimina il torneo corrente e mantiene i partecipanti.
 
 ### Certificati
-- **RF-24** A torneo concluso, sezione "Certificati di vittoria" con anteprima di un certificato per ogni atleta del podio.
-- **RF-25** Certificato "stile cintura": titolo "CERTIFICATO DI VITTORIA", nome del torneo, cintura con placca centrale (MUAY THAI, posizione, CAMPIONE/VICECAMPIONE/TERZO POSTO), nome dell'atleta, posizione e data.
-- **RF-26** "Condividi" (singolo) e "Condividi tutti" aprono il pannello di condivisione del dispositivo con i PDF allegati; visibili solo se il dispositivo supporta la condivisione di file.
-- **RF-27** "Scarica" salva il PDF (nome tipo `Certificato-1-posto-Nome-Cognome.pdf`, senza accenti).
+- **RF-24** A torneo concluso, sezione "Certificati e attestati" con due gruppi: "Vincitori" (podio) e "Partecipanti" (tutti gli altri, ordinati per cognome), con anteprima di ogni PDF.
+- **RF-25** Certificato di vittoria: pergamena con pannelli Sak Yant (tigre ed Erawan), nastro "CERTIFICATO DI VITTORIA", nome del torneo, cintura con placca oro/argento/bronzo (MUAY THAI, posizione, CAMPIONE/VICECAMPIONE/TERZO POSTO), nome dell'atleta, posizione e data.
+- **RF-25b** Attestato di partecipazione: stesso stile, nastro "ATTESTATO DI PARTECIPAZIONE", Mongkhon con "มวยไทย" e nastro "PARTECIPANTE", frase "per aver partecipato con impegno, coraggio e rispetto".
+- **RF-26** "Condividi" (singolo) e "Condividi tutti" per ciascun gruppo aprono il pannello di condivisione del dispositivo con i PDF allegati; visibili solo se il dispositivo supporta la condivisione di file.
+- **RF-27** "Scarica" salva il PDF (`Certificato-1-posto-Nome-Cognome.pdf` oppure `Attestato-partecipazione-Nome-Cognome.pdf`, senza accenti).
 - **RF-28** I certificati si rigenerano se il podio cambia (es. annullamento della finale).
 
 ---
@@ -171,9 +176,10 @@ src/
 │   └── view.ts               # helper di presentazione (nomi, etichette slot, titoli turno)
 ├── certificates/
 │   ├── content.ts            # dati del certificato dal podio, testi per posizione, nome file, data
-│   ├── draw.ts               # disegno su canvas della cintura (oro/argento/bronzo)
+│   ├── draw.ts               # layout del certificato: pergamena, cornice, nastro, cintura o Mongkhon
+│   ├── sakyant.ts            # disegni vettoriali Sak Yant: tigre, Erawan, Unalom, scrittura, ornamenti
 │   ├── pdf.ts                # writer PDF minimale (JPEG → PDF A4 orizzontale)
-│   ├── render.ts             # canvas → JPEG → PDF File; share/download
+│   ├── render.ts             # canvas → JPEG → PDF File (sfondo in cache); share/download
 │   └── certificates.test.ts  # test contenuti, nomi file, struttura PDF
 └── components/
     ├── SetupView.tsx         # impostazioni + partecipanti + avvio
@@ -253,6 +259,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Versione/build/commit visibili nell'header (v0.4.0).
 - ✅ Certificati PDF stile cintura (v0.5.0): 73 test verdi; PDF validati aprendoli con macOS (PDFKit); condivisione verificata simulando la Web Share API; da provare sul tablet reale con WhatsApp/Telegram.
 - ✅ Verifica mobile iPhone 17 (v0.5.1) con Playwright **WebKit** (402×874, DPR 3, touch) su tutte le schermate, in verticale e in orizzontale: nessun overflow orizzontale, nessun controllo sotto 44 pt, nessun testo sotto 12 px; tablet 1180×820 invariato. Le safe area reali (Dynamic Island) non sono emulabili: da confermare sul dispositivo.
+- ✅ Attestati di partecipazione e stile Sak Yant (v0.6.0): 75 test verdi; verificato in WebKit su iPhone 17 e tablet con 10 atleti (3 certificati + 7 attestati, condivisione per gruppo, nessun overflow).
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.
