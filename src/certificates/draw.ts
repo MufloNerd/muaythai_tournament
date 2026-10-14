@@ -12,9 +12,8 @@ import {
   cornerFlourish,
   drawErawan,
   drawMongkhon,
-  drawTiger,
+  drawSueaKoo,
   drawUnalom,
-  scriptArc,
   scriptLine,
   seededRng,
 } from './sakyant'
@@ -163,24 +162,28 @@ function drawYantPanel(ctx: Ctx, x: number, y: number, w: number, h: number, kin
     }
   }
 
-  drawUnalom(ctx, cx, y + 330, 230)
-  const figY = y + 640
-  scriptArc(ctx, cx, figY, 262, Math.PI * 1.24, Math.PI * 1.76, 34, rng)
-  if (kind === 'tiger') drawTiger(ctx, cx, figY + 6, w * 0.84)
-  else drawErawan(ctx, cx, figY - 6, w * 0.88, PANEL)
+  let rowsTop: number
+  if (kind === 'tiger') {
+    // Suea Koo carries its own unalom, central yant and script arcs.
+    drawSueaKoo(ctx, cx, y + 530, w * 1.04, PANEL)
+    rowsTop = y + 1140
+  } else {
+    drawUnalom(ctx, cx, y + 230, 160)
+    drawErawan(ctx, cx, y + 640, w * 0.94, PANEL)
+    rowsTop = y + 1150
+  }
 
-  const rowsTop = figY + 270
-  for (let i = 0; i < 8; i++) {
-    const rowY = rowsTop + i * 60
+  for (let i = 0; i < 10; i++) {
+    const rowY = rowsTop + i * 56
     if (rowY > y + h - 70) break
     const inset = 50 + (i % 2) * 18
-    scriptLine(ctx, x + inset, rowY, w - inset * 2, 34, rng)
+    scriptLine(ctx, x + inset, rowY, w - inset * 2, 32, rng)
   }
 }
 
 function drawRibbon(ctx: Ctx, cx: number, cy: number, half: number, height: number, text: string) {
   const h2 = height / 2
-  const tail = 120
+  const tail = 70
   ctx.lineJoin = 'round'
   for (const side of [-1, 1]) {
     const xi = cx + side * (half - 50)
@@ -391,10 +394,10 @@ export function drawCertificateBackground(ctx: Ctx) {
   const H = CERT_HEIGHT
   drawParchment(ctx, W, H)
   drawFrame(ctx, W, H)
-  const panelW = 450
-  const panelX = 190
-  const panelY = 250
-  const panelH = H - 500
+  const panelW = 540
+  const panelX = 150
+  const panelY = 200
+  const panelH = H - 400
   drawYantPanel(ctx, panelX, panelY, panelW, panelH, 'tiger')
   drawYantPanel(ctx, W - panelX - panelW, panelY, panelW, panelH, 'erawan')
 }
@@ -403,30 +406,30 @@ export function drawCertificateBackground(ctx: Ctx) {
 export function drawCertificateContent(ctx: Ctx, entry: CertificateEntry) {
   const cx = CERT_WIDTH / 2
 
-  drawRibbon(ctx, cx, 250, 470, 128, certificateTitle(entry))
+  drawRibbon(ctx, cx, 250, 400, 116, certificateTitle(entry))
 
   ctx.textAlign = 'center'
   ctx.fillStyle = INK
-  fitText(ctx, entry.tournamentName, cx, 430, 1050, 60, (s) => `700 ${s}px ${COND}`)
+  fitText(ctx, entry.tournamentName, cx, 430, 940, 60, (s) => `700 ${s}px ${COND}`)
 
-  if (entry.kind === 'winner') drawBelt(ctx, cx, 790, 560, entry)
+  if (entry.kind === 'winner') drawBelt(ctx, cx, 790, 470, entry)
   else drawParticipantEmblem(ctx, cx, 770)
 
   ctx.textAlign = 'center'
   ctx.fillStyle = INK
-  fitText(ctx, entry.fighterName, cx, 1240, 1080, 132, (s) => `bold ${s}px ${SERIF}`)
+  fitText(ctx, entry.fighterName, cx, 1240, 960, 132, (s) => `bold ${s}px ${SERIF}`)
 
   ctx.fillStyle = INK
-  ctx.fillRect(cx - 420, 1282, 840, 4)
+  ctx.fillRect(cx - 380, 1282, 760, 4)
   for (const side of [-1, 1]) {
     ctx.beginPath()
-    ctx.arc(cx + side * 440, 1284, 8, 0, Math.PI * 2)
+    ctx.arc(cx + side * 400, 1284, 8, 0, Math.PI * 2)
     ctx.fill()
   }
 
   ctx.fillStyle = RED_INK
   const line = entry.kind === 'winner' ? PLACE_INFO[entry.place].line : PARTICIPANT_LINE
-  fitText(ctx, line, cx, 1370, 1080, 54, (s) => `700 ${s}px ${COND}`)
+  fitText(ctx, line, cx, 1370, 960, 54, (s) => `700 ${s}px ${COND}`)
 
   ctx.fillStyle = INK
   ctx.font = `600 46px ${COND}`

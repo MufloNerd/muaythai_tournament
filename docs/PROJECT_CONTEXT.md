@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-14 — stato: **v0.6.0 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-14 — stato: **v0.6.1 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -49,7 +49,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D20 | Certificati di vittoria | **PDF "stile cintura" per il podio, generati sul tablet a fine torneo e condivisi con il pannello di condivisione di sistema (WhatsApp, Telegram, Mail…)**, con pulsante "Scarica" come alternativa | Gratis, offline, nessun dato inviato a terzi dall'app. Un certificato per 1° e 2°, uno per ogni 3° (due con "due bronzi"). |
 | D21 | Supporto smartphone | **Layout verificato e ottimizzato per iPhone 17** (402×874 pt, verticale e orizzontale) oltre che per tablet | Richiesto dall'utente. Su telefono: header su due righe (titolo+versione, poi schede e "Nuovo torneo"), ring compatti per vederne due senza scorrere, colonne del tabellone più strette. |
 | D22 | Attestati di partecipazione | **Un attestato PDF per ogni partecipante non sul podio**, oltre ai certificati di vittoria | Richiesto dall'utente: nessuno torna a casa a mani vuote. |
-| D23 | Stile dei certificati | **Pergamena con inchiostro marrone scuro e Sak Yant** (tigre Suea a sinistra, Erawan a tre teste a destra, Unalom, scrittura decorativa in stile Khom), come la locandina dell'evento | Scelta dell'utente tra 3 opzioni. Le figure sono disegnate in vettoriale (originali, non ritagliate dalla locandina) per restare nitide alla risoluzione di stampa. Vincitori: cintura oro/argento/bronzo al centro. Partecipanti: Mongkhon rosso e bianco con "มวยไทย" e nastro "PARTECIPANTE". |
+| D23 | Stile dei certificati | **Pergamena con inchiostro marrone scuro e Sak Yant**, come la locandina dell'evento. Pannello sinistro: **Suea Koo** (due tigri gemelle rampanti a strisce che si fronteggiano, Unalom e piccola yant al centro, colonne e archi di scrittura). Pannello destro: **testa di elefante Erawan frontale e ornata** (aureola di foglie kranok, mandala sulla fronte, catene di perle, pendenti, zanne, proboscide arricciata con gioielli). Unalom e righe di scrittura in stile Khom in entrambi | Scelta dell'utente tra 3 opzioni, poi affinata su immagini di riferimento fornite dall'utente (v0.6.1). Le figure sono reinterpretazioni vettoriali originali, non copie dei riferimenti né ritagli della locandina: restano nitide in stampa e si possono pubblicare nel repository. Vincitori: cintura oro/argento/bronzo al centro. Partecipanti: Mongkhon rosso e bianco con "มวยไทย" e nastro "PARTECIPANTE". |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -177,7 +177,7 @@ src/
 ├── certificates/
 │   ├── content.ts            # dati del certificato dal podio, testi per posizione, nome file, data
 │   ├── draw.ts               # layout del certificato: pergamena, cornice, nastro, cintura o Mongkhon
-│   ├── sakyant.ts            # disegni vettoriali Sak Yant: tigre, Erawan, Unalom, scrittura, ornamenti
+│   ├── sakyant.ts            # disegni vettoriali Sak Yant: Suea Koo, Erawan, Unalom, scrittura, ornamenti
 │   ├── pdf.ts                # writer PDF minimale (JPEG → PDF A4 orizzontale)
 │   ├── render.ts             # canvas → JPEG → PDF File (sfondo in cache); share/download
 │   └── certificates.test.ts  # test contenuti, nomi file, struttura PDF
@@ -260,6 +260,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Certificati PDF stile cintura (v0.5.0): 73 test verdi; PDF validati aprendoli con macOS (PDFKit); condivisione verificata simulando la Web Share API; da provare sul tablet reale con WhatsApp/Telegram.
 - ✅ Verifica mobile iPhone 17 (v0.5.1) con Playwright **WebKit** (402×874, DPR 3, touch) su tutte le schermate, in verticale e in orizzontale: nessun overflow orizzontale, nessun controllo sotto 44 pt, nessun testo sotto 12 px; tablet 1180×820 invariato. Le safe area reali (Dynamic Island) non sono emulabili: da confermare sul dispositivo.
 - ✅ Attestati di partecipazione e stile Sak Yant (v0.6.0): 75 test verdi; verificato in WebKit su iPhone 17 e tablet con 10 atleti (3 certificati + 7 attestati, condivisione per gruppo, nessun overflow).
+- ✅ Suea Koo ed Erawan ridisegnati secondo i riferimenti dell'utente (v0.6.1): 16 PDF generati in ~0,4 s in WebKit su iPhone 17, senza errori.
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.
