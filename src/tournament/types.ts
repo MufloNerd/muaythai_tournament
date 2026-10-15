@@ -31,6 +31,10 @@ export interface MatchResult {
 export interface Tournament {
   name: string
   roundsPerMatch: number
+  /** Length of one round, in seconds. */
+  roundSeconds: number
+  /** Rest between rounds, in seconds. */
+  pauseSeconds: number
   fighters: Fighter[]
   matches: MatchDef[]
   results: Record<string, MatchResult>

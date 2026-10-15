@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-14 — stato: **v0.6.1 — MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-15 — stato: **v0.7.0 — durata di ripresa e pausa configurabili; MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -31,7 +31,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D2 | Numero di dispositivi | **Un solo tablet gestisce tutti i ring** | Nessuna sincronizzazione né backend necessari. |
 | D3 | Formato torneo | **Eliminazione diretta** con 3° posto configurabile (vedi D16) | Scelta iniziale: finale 3° posto tra i perdenti delle semifinali. |
 | D4 | Accoppiamenti 1° turno | **Sorteggio casuale automatico, bye sorteggiati e bilanciati** (vedi D17) | Se i partecipanti non sono una potenza di 2, alcuni passano il turno (bye). |
-| D5 | Durata incontri | **Numero di riprese configurabile** nelle impostazioni (riprese da 2' con 1' di pausa) | Default 3, intervallo 1–12. Dato solo informativo. |
+| D5 | Durata incontri | **Numero di riprese configurabile** nelle impostazioni | Default 3, intervallo 1–12. Dato solo informativo. Durata di ripresa e pausa: vedi D24. |
 | D6 | Timer | **Nessun timer integrato** | Il tempo è gestito con un cronometro esterno. |
 | D7 | Dati partecipante | **Solo nome e cognome** | Niente palestra/peso/età/categorie. |
 | D8 | Assegnazione ai ring | **Automatica**: il prossimo incontro pronto va al primo ring libero | Nessuno spostamento manuale tra ring. |
@@ -50,6 +50,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D21 | Supporto smartphone | **Layout verificato e ottimizzato per iPhone 17** (402×874 pt, verticale e orizzontale) oltre che per tablet | Richiesto dall'utente. Su telefono: header su due righe (titolo+versione, poi schede e "Nuovo torneo"), ring compatti per vederne due senza scorrere, colonne del tabellone più strette. |
 | D22 | Attestati di partecipazione | **Un attestato PDF per ogni partecipante non sul podio**, oltre ai certificati di vittoria | Richiesto dall'utente: nessuno torna a casa a mani vuote. |
 | D23 | Stile dei certificati | **Pergamena con inchiostro marrone scuro e Sak Yant**, come la locandina dell'evento. Pannello sinistro: **Suea Koo** (due tigri gemelle rampanti a strisce che si fronteggiano, Unalom e piccola yant al centro, colonne e archi di scrittura). Pannello destro: **testa di elefante Erawan frontale e ornata** (aureola di foglie kranok, mandala sulla fronte, catene di perle, pendenti, zanne, proboscide arricciata con gioielli). Unalom e righe di scrittura in stile Khom in entrambi | Scelta dell'utente tra 3 opzioni, poi affinata su immagini di riferimento fornite dall'utente (v0.6.1). Le figure sono reinterpretazioni vettoriali originali, non copie dei riferimenti né ritagli della locandina: restano nitide in stampa e si possono pubblicare nel repository. Vincitori: cintura oro/argento/bronzo al centro. Partecipanti: Mongkhon rosso e bianco con "มวยไทย" e nastro "PARTECIPANTE". |
+| D24 | Durata di ripresa e pausa | **Configurabili nel setup a scatti di 30"**: ripresa da 30" a 5' (default 2'), pausa da 30" a 3' (default 1'); fissate all'avvio del torneo | Richiesto dall'utente. Formato "2'", "1'30"", "30"". Solo informative (nessun timer, D6): appaiono nel setup con la durata stimata dell'incontro e sotto ogni ring ("3 riprese da 2' · 1' di pausa"; con una sola ripresa la pausa non viene mostrata). |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -77,6 +78,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | I20 | Placca della cintura oro (1°), argento (2°), bronzo (3°) su cinturone rosso; data = data dell'ultimo risultato registrato; partecipanti ordinati per cognome e poi nome | |
 | I21 | Lo sfondo comune (pergamena, cornice, pannelli Sak Yant) viene disegnato **una sola volta** e copiato in ogni certificato; i certificati compaiono **uno alla volta** (prima il podio) e il canvas viene liberato subito dopo l'esportazione | Prestazioni e memoria su iPhone/iPad con 30+ atleti. Misurato: 10 PDF in ~0,35 s su WebKit desktop. |
 | I22 | Il testo "มวยไทย" (Muay Thai in thai) usa i font di sistema Thonburi (Apple) o Noto Sans Thai / Leelawadee (Android/Windows) | Nessun font da scaricare; resta leggibile offline. |
+| I23 | **Migrazione dei dati salvati** in `parseState` (store.ts): tornei e bozze salvati prima della v0.7.0 senza durate ricevono 2' / 1' | Il torneo in corso sul tablet non si rompe con l'aggiornamento. Coperto da test. |
 
 ---
 
@@ -84,7 +86,8 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 
 ### Configurazione torneo
 - **RF-01** Inserire il nome del torneo (facoltativo; default "Torneo Muay Thai").
-- **RF-02** Impostare il numero di riprese per incontro (default 3, min 1, max 12), mostrato come "N riprese da 2' · 1' di pausa".
+- **RF-02** Impostare il numero di riprese per incontro (default 3, min 1, max 12), con la durata stimata dell'incontro.
+- **RF-02a** Impostare la durata della ripresa (30"–5', default 2') e della pausa (30"–3', default 1') a scatti di 30"; mostrate come "N riprese da 2' · 1' di pausa" sotto ogni ring.
 - **RF-02b** Impostare il numero di ring (default 2, min 1, max 4); non modificabile dopo l'avvio.
 - **RF-03** Aggiungere partecipanti indicando nome e cognome (Invio da tastiera per aggiungere velocemente).
 - **RF-04** Rimuovere un partecipante prima dell'avvio.
@@ -261,6 +264,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Verifica mobile iPhone 17 (v0.5.1) con Playwright **WebKit** (402×874, DPR 3, touch) su tutte le schermate, in verticale e in orizzontale: nessun overflow orizzontale, nessun controllo sotto 44 pt, nessun testo sotto 12 px; tablet 1180×820 invariato. Le safe area reali (Dynamic Island) non sono emulabili: da confermare sul dispositivo.
 - ✅ Attestati di partecipazione e stile Sak Yant (v0.6.0): 75 test verdi; verificato in WebKit su iPhone 17 e tablet con 10 atleti (3 certificati + 7 attestati, condivisione per gruppo, nessun overflow).
 - ✅ Suea Koo ed Erawan ridisegnati secondo i riferimenti dell'utente (v0.6.1): 16 PDF generati in ~0,4 s in WebKit su iPhone 17, senza errori.
+- ✅ Durata di ripresa e pausa configurabili (v0.7.0): 90 test verdi (validazione, formato, migrazione dei dati salvati); verificato in WebKit su iPhone 17 e tablet, compresa la riapertura di un torneo salvato dalla v0.6.1.
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.

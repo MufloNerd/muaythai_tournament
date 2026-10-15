@@ -12,6 +12,31 @@ export const RING_COUNT = 2
 export const MIN_RINGS = 1
 export const MAX_RINGS = 4
 
+export const DEFAULT_ROUND_SECONDS = 120
+export const DEFAULT_PAUSE_SECONDS = 60
+export const DURATION_STEP_SECONDS = 30
+export const ROUND_SECONDS_RANGE = [30, 300] as const
+export const PAUSE_SECONDS_RANGE = [30, 180] as const
+
+/** 120 → 2', 90 → 1'30", 30 → 30" */
+export function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m === 0) return `${s}"`
+  return s === 0 ? `${m}'` : `${m}'${String(s).padStart(2, '0')}"`
+}
+
+/** Total length of one bout: all rounds plus the rests between them. */
+export function matchSeconds(t: Pick<Tournament, 'roundsPerMatch' | 'roundSeconds' | 'pauseSeconds'>): number {
+  return t.roundsPerMatch * t.roundSeconds + Math.max(0, t.roundsPerMatch - 1) * t.pauseSeconds
+}
+
+/** e.g. "3 riprese da 2' · 1' di pausa" (no rest mentioned for single-round bouts). */
+export function roundsSummary(t: Pick<Tournament, 'roundsPerMatch' | 'roundSeconds' | 'pauseSeconds'>): string {
+  const rounds = `${t.roundsPerMatch} ${t.roundsPerMatch === 1 ? 'ripresa' : 'riprese'} da ${formatDuration(t.roundSeconds)}`
+  return t.roundsPerMatch > 1 ? `${rounds} · ${formatDuration(t.pauseSeconds)} di pausa` : rounds
+}
+
 export type Rng = () => number
 
 export function makeId(): string {
@@ -92,6 +117,8 @@ export function balancedByeMatches(matchCount: number, byeCount: number, rng: Rn
 export function createTournament(params: {
   name: string
   roundsPerMatch: number
+  roundSeconds?: number
+  pauseSeconds?: number
   fighters: Fighter[]
   ringCount?: number
   thirdPlaceMatch?: boolean
@@ -101,6 +128,8 @@ export function createTournament(params: {
   const {
     name,
     roundsPerMatch,
+    roundSeconds = DEFAULT_ROUND_SECONDS,
+    pauseSeconds = DEFAULT_PAUSE_SECONDS,
     fighters,
     ringCount = RING_COUNT,
     thirdPlaceMatch = true,
@@ -111,6 +140,10 @@ export function createTournament(params: {
   if (!Number.isInteger(ringCount) || ringCount < MIN_RINGS || ringCount > MAX_RINGS) {
     throw new Error(`Il numero di ring deve essere tra ${MIN_RINGS} e ${MAX_RINGS}`)
   }
+  const validDuration = (s: number, [min, max]: readonly [number, number]) =>
+    Number.isInteger(s) && s >= min && s <= max && s % DURATION_STEP_SECONDS === 0
+  if (!validDuration(roundSeconds, ROUND_SECONDS_RANGE)) throw new Error('Durata della ripresa non valida')
+  if (!validDuration(pauseSeconds, PAUSE_SECONDS_RANGE)) throw new Error('Durata della pausa non valida')
 
   const size = bracketSize(fighters.length)
   const firstRoundMatches = size / 2
@@ -156,6 +189,8 @@ export function createTournament(params: {
   return fillRings({
     name: name.trim() || 'Torneo Muay Thai',
     roundsPerMatch,
+    roundSeconds,
+    pauseSeconds,
     fighters,
     matches,
     results: {},

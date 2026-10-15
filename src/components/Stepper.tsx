@@ -4,10 +4,12 @@ interface Props {
   max: number
   label: string
   hint?: string
+  step?: number
+  format?: (value: number) => string
   onChange: (value: number) => void
 }
 
-export function Stepper({ value, min, max, label, hint, onChange }: Props) {
+export function Stepper({ value, min, max, label, hint, step = 1, format = String, onChange }: Props) {
   const set = (n: number) => onChange(Math.min(max, Math.max(min, n)))
   return (
     <div className="stepper">
@@ -16,17 +18,17 @@ export function Stepper({ value, min, max, label, hint, onChange }: Props) {
         className="btn btn-ghost"
         aria-label={`Diminuisci ${label}`}
         disabled={value <= min}
-        onClick={() => set(value - 1)}
+        onClick={() => set(value - step)}
       >
         −
       </button>
-      <output aria-label={label}>{value}</output>
+      <output aria-label={label}>{format(value)}</output>
       <button
         type="button"
         className="btn btn-ghost"
         aria-label={`Aumenta ${label}`}
         disabled={value >= max}
-        onClick={() => set(value + 1)}
+        onClick={() => set(value + step)}
       >
         +
       </button>

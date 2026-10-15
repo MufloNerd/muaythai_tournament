@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createTournament, makeId, RING_COUNT, recordWinner, undoResult } from './engine'
+import {
+  createTournament,
+  DEFAULT_PAUSE_SECONDS,
+  DEFAULT_ROUND_SECONDS,
+  makeId,
+  RING_COUNT,
+  recordWinner,
+  undoResult,
+} from './engine'
 import type { Corner, Fighter, Tournament } from './types'
 
 const STORAGE_KEY = 'muaythai-tournament:v1'
@@ -7,6 +15,8 @@ const STORAGE_KEY = 'muaythai-tournament:v1'
 export interface Draft {
   name: string
   roundsPerMatch: number
+  roundSeconds: number
+  pauseSeconds: number
   ringCount: number
   /** false = two bronzes (both semifinal losers share third place). */
   thirdPlaceMatch: boolean
@@ -19,23 +29,38 @@ export interface AppState {
 }
 
 const initialState: AppState = {
-  draft: { name: '', roundsPerMatch: 3, ringCount: RING_COUNT, thirdPlaceMatch: true, fighters: [] },
+  draft: {
+    name: '',
+    roundsPerMatch: 3,
+    roundSeconds: DEFAULT_ROUND_SECONDS,
+    pauseSeconds: DEFAULT_PAUSE_SECONDS,
+    ringCount: RING_COUNT,
+    thirdPlaceMatch: true,
+    fighters: [],
+  },
   tournament: null,
 }
 
-function load(): AppState {
+/** Restores saved state, filling in fields added by later versions. */
+export function parseState(raw: string | null): AppState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState
-    const parsed = JSON.parse(raw) as Partial<AppState>
+    // Data from older versions may lack fields that are now required.
+    const parsed = JSON.parse(raw) as { draft?: Partial<Draft>; tournament?: Partial<Tournament> | null }
+    // Tournaments saved before durations were configurable used 2' rounds and 1' rests.
+    const tournament = parsed.tournament
+      ? ({ roundSeconds: DEFAULT_ROUND_SECONDS, pauseSeconds: DEFAULT_PAUSE_SECONDS, ...parsed.tournament } as Tournament)
+      : null
     return {
       draft: { ...initialState.draft, ...parsed.draft },
-      tournament: parsed.tournament ?? null,
+      tournament,
     }
   } catch {
     return initialState
   }
 }
+
+const load = () => parseState(localStorage.getItem(STORAGE_KEY))
 
 export function useAppState() {
   const [state, setState] = useState<AppState>(load)
@@ -68,6 +93,8 @@ export function useAppState() {
       tournament: createTournament({
         name: s.draft.name,
         roundsPerMatch: s.draft.roundsPerMatch,
+        roundSeconds: s.draft.roundSeconds,
+        pauseSeconds: s.draft.pauseSeconds,
         ringCount: s.draft.ringCount,
         thirdPlaceMatch: s.draft.thirdPlaceMatch,
         fighters: s.draft.fighters,

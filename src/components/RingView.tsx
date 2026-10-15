@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import { canUndo, podium, resolve } from '../tournament/engine'
+import { canUndo, podium, resolve, roundsSummary } from '../tournament/engine'
 import type { Corner, ResolvedMatch, Tournament } from '../tournament/types'
 import { buildView } from '../tournament/view'
 import { CertificatesPanel } from './CertificatesPanel'
@@ -92,8 +92,7 @@ export function RingView({ tournament: t, onWinner, onUndo }: Props) {
                       ))}
                     </div>
                     <p className="hint">
-                      {t.roundsPerMatch} {t.roundsPerMatch === 1 ? 'ripresa' : 'riprese'} da 2' · 1' di pausa — tocca il
-                      vincitore
+                      {roundsSummary(t)} — tocca il vincitore
                     </p>
                   </>
                 ) : (

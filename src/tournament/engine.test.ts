@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   balancedByeMatches,
+  formatDuration,
+  matchSeconds,
+  roundsSummary,
   bracketSize,
   canUndo,
   createTournament,
@@ -264,5 +267,48 @@ describe('roundName', () => {
     expect(roundName(3, 4)).toBe('Finale')
     expect(roundName(3, 4, 'third')).toBe('Finale 3° posto')
     expect(roundName(0, 7)).toBe('1° turno')
+  })
+})
+
+describe('round and rest durations', () => {
+  it('defaults to 2\' rounds and 1\' rest', () => {
+    expect(make(4)).toMatchObject({ roundSeconds: 120, pauseSeconds: 60 })
+  })
+
+  it('stores custom durations', () => {
+    const t = createTournament({ name: 'T', roundsPerMatch: 2, roundSeconds: 90, pauseSeconds: 30, fighters: fighters(4) })
+    expect(t).toMatchObject({ roundSeconds: 90, pauseSeconds: 30 })
+  })
+
+  it.each([
+    [0, 60],
+    [15, 60],
+    [100, 60],
+    [330, 60],
+    [120, 0],
+    [120, 210],
+    [120, 45],
+  ])('rejects round %is / rest %is', (roundSeconds, pauseSeconds) => {
+    expect(() =>
+      createTournament({ name: 'T', roundsPerMatch: 3, roundSeconds, pauseSeconds, fighters: fighters(4) }),
+    ).toThrow()
+  })
+
+  it('formats durations in minutes and seconds', () => {
+    expect(formatDuration(120)).toBe("2'")
+    expect(formatDuration(90)).toBe('1\'30"')
+    expect(formatDuration(30)).toBe('30"')
+    expect(formatDuration(300)).toBe("5'")
+  })
+
+  it('computes the length of a bout', () => {
+    expect(matchSeconds({ roundsPerMatch: 3, roundSeconds: 120, pauseSeconds: 60 })).toBe(480)
+    expect(matchSeconds({ roundsPerMatch: 1, roundSeconds: 90, pauseSeconds: 60 })).toBe(90)
+  })
+
+  it('summarises rounds, omitting the rest for single-round bouts', () => {
+    expect(roundsSummary({ roundsPerMatch: 3, roundSeconds: 120, pauseSeconds: 60 })).toBe("3 riprese da 2' · 1' di pausa")
+    expect(roundsSummary({ roundsPerMatch: 2, roundSeconds: 90, pauseSeconds: 30 })).toBe('2 riprese da 1\'30" · 30" di pausa')
+    expect(roundsSummary({ roundsPerMatch: 1, roundSeconds: 180, pauseSeconds: 60 })).toBe("1 ripresa da 3'")
   })
 })

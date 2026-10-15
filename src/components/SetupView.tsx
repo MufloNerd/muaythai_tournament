@@ -1,6 +1,16 @@
 import { useRef, useState, type FormEvent } from 'react'
 import type { Draft } from '../tournament/store'
-import { bracketSize, fighterName, MAX_RINGS, MIN_RINGS } from '../tournament/engine'
+import {
+  bracketSize,
+  DURATION_STEP_SECONDS,
+  fighterName,
+  formatDuration,
+  matchSeconds,
+  MAX_RINGS,
+  MIN_RINGS,
+  PAUSE_SECONDS_RANGE,
+  ROUND_SECONDS_RANGE,
+} from '../tournament/engine'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Stepper } from './Stepper'
 
@@ -55,8 +65,34 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
             value={draft.roundsPerMatch}
             min={1}
             max={12}
-            hint="da 2' con 1' di pausa"
+            hint={`incontro di circa ${formatDuration(matchSeconds(draft))}`}
             onChange={(roundsPerMatch) => onChange({ roundsPerMatch })}
+          />
+        </div>
+        <div className="field">
+          <span>Durata ripresa</span>
+          <Stepper
+            label="durata ripresa"
+            value={draft.roundSeconds}
+            min={ROUND_SECONDS_RANGE[0]}
+            max={ROUND_SECONDS_RANGE[1]}
+            step={DURATION_STEP_SECONDS}
+            format={formatDuration}
+            hint="minuti e secondi"
+            onChange={(roundSeconds) => onChange({ roundSeconds })}
+          />
+        </div>
+        <div className="field">
+          <span>Pausa tra le riprese</span>
+          <Stepper
+            label="pausa tra le riprese"
+            value={draft.pauseSeconds}
+            min={PAUSE_SECONDS_RANGE[0]}
+            max={PAUSE_SECONDS_RANGE[1]}
+            step={DURATION_STEP_SECONDS}
+            format={formatDuration}
+            hint={draft.roundsPerMatch === 1 ? 'non usata con una sola ripresa' : 'minuti e secondi'}
+            onChange={(pauseSeconds) => onChange({ pauseSeconds })}
           />
         </div>
         <div className="field">

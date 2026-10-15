@@ -249,16 +249,24 @@ input:focus {
 }
 
 .stepper .btn {
+  flex: none;
   width: 52px;
   font-size: 1.4rem;
   padding: 0;
 }
 
 .stepper output {
+  flex: none;
+  width: 3.4em;
   font-size: 1.6rem;
   font-weight: 700;
-  min-width: 2ch;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper small {
+  min-width: 0;
+  color: var(--muted);
 }
 
 .add-fighter {
