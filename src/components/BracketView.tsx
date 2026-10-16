@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { canUndo, resolve } from '../tournament/engine'
+import { canUndo, drawStage, resolve } from '../tournament/engine'
 import type { ResolvedMatch, Tournament } from '../tournament/types'
 import { buildView } from '../tournament/view'
 import { UndoDialog } from './UndoDialog'
@@ -47,6 +47,14 @@ export function BracketView({ tournament: t, onUndo }: Props) {
           <span>{m.number ? `Inc. ${m.number}` : 'Bye'}</span>
           {m.ring !== null && <span className="badge">Ring {m.ring + 1}</span>}
           {m.status === 'bye' && <span className="muted">passa il turno</span>}
+          {m.status === 'ready' && drawStage(t, m.def.id) === 1 && <span className="badge-draw">suppl.</span>}
+          {m.status === 'ready' && drawStage(t, m.def.id) === 2 && <span className="badge-draw">giudici</span>}
+          {m.status === 'done' && t.results[m.def.id].decision === 'extra-round' && (
+            <span className="badge-draw" title="Deciso dopo la ripresa supplementare">suppl.</span>
+          )}
+          {m.status === 'done' && t.results[m.def.id].decision === 'judges' && (
+            <span className="badge-draw" title="Decisione dei giudici">giudici</span>
+          )}
           {undoable && <span className="muted">↶</span>}
         </div>
         {side('red')}
@@ -79,6 +87,7 @@ export function BracketView({ tournament: t, onUndo }: Props) {
         <UndoDialog
           match={pendingUndo}
           view={view}
+          drawStage={drawStage(t, pendingUndo.def.id)}
           onCancel={() => setPendingUndo(null)}
           onConfirm={() => {
             onUndo(pendingUndo.def.id)

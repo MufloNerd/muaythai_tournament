@@ -22,10 +22,15 @@ export interface MatchDef {
   blue: SlotSource
 }
 
+/** How a bout was decided: in regulation, after the extra round, or by the judges after two draws. */
+export type Decision = 'regular' | 'extra-round' | 'judges'
+
 export interface MatchResult {
   winner: Corner
   ring: number | null
   at: number
+  /** Missing in results saved before draws were handled (= 'regular'). */
+  decision?: Decision
 }
 
 export interface Tournament {
@@ -35,9 +40,13 @@ export interface Tournament {
   roundSeconds: number
   /** Rest between rounds, in seconds. */
   pauseSeconds: number
+  /** Length of the extra round played after a draw, in seconds. */
+  extraRoundSeconds: number
   fighters: Fighter[]
   matches: MatchDef[]
   results: Record<string, MatchResult>
+  /** Draws declared on undecided bouts: 1 = extra round in progress, 2 = judges must pick a winner. */
+  draws: Record<string, number>
   /** Match id currently assigned to each ring (index 0 = Ring 1). */
   rings: (string | null)[]
   startedAt: number

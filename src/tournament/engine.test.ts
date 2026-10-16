@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   balancedByeMatches,
+  declareDraw,
+  decisionLabel,
+  drawStage,
+  undoDraw,
   formatDuration,
   matchSeconds,
   roundsSummary,
@@ -310,5 +314,85 @@ describe('round and rest durations', () => {
     expect(roundsSummary({ roundsPerMatch: 3, roundSeconds: 120, pauseSeconds: 60 })).toBe("3 riprese da 2' · 1' di pausa")
     expect(roundsSummary({ roundsPerMatch: 2, roundSeconds: 90, pauseSeconds: 30 })).toBe('2 riprese da 1\'30" · 30" di pausa')
     expect(roundsSummary({ roundsPerMatch: 1, roundSeconds: 180, pauseSeconds: 60 })).toBe("1 ripresa da 3'")
+  })
+})
+
+describe('draws', () => {
+  it('sends the bout to an extra round, keeping it on the same ring', () => {
+    let t = make(4)
+    t = declareDraw(t, 'r0-m0')
+    expect(drawStage(t, 'r0-m0')).toBe(1)
+    expect(t.rings).toEqual(['r0-m0', 'r0-m1'])
+    expect(resolve(t).find((m) => m.def.id === 'r0-m0')!.status).toBe('ready')
+  })
+
+  it('leaves the decision to the judges after a second draw, and allows no third', () => {
+    let t = declareDraw(declareDraw(make(4), 'r0-m0'), 'r0-m0')
+    expect(drawStage(t, 'r0-m0')).toBe(2)
+    expect(() => declareDraw(t, 'r0-m0')).toThrow()
+  })
+
+  it('records how the bout was decided', () => {
+    let t = make(8)
+    t = recordWinner(t, 'r0-m0', 'red', 1)
+    t = recordWinner(declareDraw(t, 'r0-m1'), 'r0-m1', 'blue', 2)
+    t = recordWinner(declareDraw(declareDraw(t, 'r0-m2'), 'r0-m2'), 'r0-m2', 'red', 3)
+    expect(t.results['r0-m0'].decision).toBe('regular')
+    expect(t.results['r0-m1'].decision).toBe('extra-round')
+    expect(t.results['r0-m2'].decision).toBe('judges')
+    expect(decisionLabel('regular')).toBeNull()
+    expect(decisionLabel(undefined)).toBeNull()
+    expect(decisionLabel('extra-round')).toBe('dopo ripresa supplementare')
+    expect(decisionLabel('judges')).toBe('decisione dei giudici')
+  })
+
+  it('advances the winner normally after a draw', () => {
+    let t = make(4)
+    t = recordWinner(declareDraw(t, 'r0-m0'), 'r0-m0', 'blue', 1)
+    t = recordWinner(t, 'r0-m1', 'red', 2)
+    const final = resolve(t).find((m) => m.def.id === 'r1-m0')!
+    expect(final.status).toBe('ready')
+    expect(podium(playAll(t)).finished).toBe(true)
+  })
+
+  it('cancels a draw step by step, only while the bout is undecided', () => {
+    let t = declareDraw(declareDraw(make(4), 'r0-m0'), 'r0-m0')
+    t = undoDraw(t, 'r0-m0')
+    expect(drawStage(t, 'r0-m0')).toBe(1)
+    t = undoDraw(t, 'r0-m0')
+    expect(drawStage(t, 'r0-m0')).toBe(0)
+    expect(t.draws).toEqual({})
+    expect(() => undoDraw(t, 'r0-m0')).toThrow()
+    const decided = recordWinner(declareDraw(t, 'r0-m0'), 'r0-m0', 'red')
+    expect(() => undoDraw(decided, 'r0-m0')).toThrow()
+  })
+
+  it('refuses draws on bouts that are not ready', () => {
+    expect(() => declareDraw(make(8), 'r1-m0')).toThrow()
+  })
+
+  it('undoing a result brings the bout back to its draw stage', () => {
+    let t = recordWinner(declareDraw(make(4), 'r0-m0'), 'r0-m0', 'red', 1)
+    t = undoResult(t, 'r0-m0')
+    expect(drawStage(t, 'r0-m0')).toBe(1)
+    expect(t.rings).toContain('r0-m0')
+  })
+
+  it('clears draws of following bouts when a result feeding them is undone', () => {
+    let t = make(4)
+    t = recordWinner(t, 'r0-m0', 'red', 1)
+    t = recordWinner(t, 'r0-m1', 'red', 2)
+    t = declareDraw(t, 'r1-m0')
+    t = undoResult(t, 'r0-m1')
+    expect(drawStage(t, 'r1-m0')).toBe(0)
+  })
+
+  it('uses the round length for the extra round unless configured', () => {
+    expect(make(4).extraRoundSeconds).toBe(120)
+    const t = createTournament({ name: 'T', roundsPerMatch: 3, roundSeconds: 90, fighters: fighters(4) })
+    expect(t.extraRoundSeconds).toBe(90)
+    const u = createTournament({ name: 'T', roundsPerMatch: 3, extraRoundSeconds: 60, fighters: fighters(4) })
+    expect(u.extraRoundSeconds).toBe(60)
+    expect(() => createTournament({ name: 'T', roundsPerMatch: 3, extraRoundSeconds: 45, fighters: fighters(4) })).toThrow()
   })
 })

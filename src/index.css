@@ -497,6 +497,38 @@ input:focus {
   background: linear-gradient(160deg, var(--blue), var(--blue-dark));
 }
 
+.draw-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 8px 8px 12px;
+  border-radius: 10px;
+  background: rgb(242 193 78 / 0.14);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.draw-banner.stage-2 {
+  background: rgb(242 193 78 / 0.24);
+}
+
+.draw-btn {
+  width: 100%;
+  border-style: dashed;
+  color: var(--gold);
+}
+
+.badge-draw {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 0 5px;
+  font-weight: 700;
+}
+
 .hint {
   margin: 0;
   text-align: center;

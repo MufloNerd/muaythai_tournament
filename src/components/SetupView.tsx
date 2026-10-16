@@ -96,6 +96,19 @@ export function SetupView({ draft, onChange, onAdd, onRemove, onStart }: Props) 
           />
         </div>
         <div className="field">
+          <span>Ripresa supplementare</span>
+          <Stepper
+            label="ripresa supplementare"
+            value={draft.extraRoundSeconds}
+            min={ROUND_SECONDS_RANGE[0]}
+            max={ROUND_SECONDS_RANGE[1]}
+            step={DURATION_STEP_SECONDS}
+            format={formatDuration}
+            hint="in caso di pareggio; se ancora pari decidono i giudici"
+            onChange={(extraRoundSeconds) => onChange({ extraRoundSeconds })}
+          />
+        </div>
+        <div className="field">
           <span>Numero di ring</span>
           <Stepper
             label="numero di ring"

@@ -10,7 +10,8 @@ import { useWakeLock } from './useWakeLock'
 type Tab = 'ring' | 'bracket'
 
 export default function App() {
-  const { state, updateDraft, addFighter, removeFighter, start, setWinner, undo, reset } = useAppState()
+  const { state, updateDraft, addFighter, removeFighter, start, setWinner, undo, draw, cancelDraw, reset } =
+    useAppState()
   const [tab, setTab] = useState<Tab>('ring')
   const [confirmReset, setConfirmReset] = useState(false)
   const t = state.tournament
@@ -54,7 +55,9 @@ export default function App() {
           }}
         />
       )}
-      {t && tab === 'ring' && <RingView tournament={t} onWinner={setWinner} onUndo={undo} />}
+      {t && tab === 'ring' && (
+        <RingView tournament={t} onWinner={setWinner} onUndo={undo} onDraw={draw} onCancelDraw={cancelDraw} />
+      )}
       {t && tab === 'bracket' && <BracketView tournament={t} onUndo={undo} />}
 
       {confirmReset && (

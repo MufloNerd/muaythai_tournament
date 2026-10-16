@@ -3,7 +3,7 @@
 Questo documento raccoglie **tutte le decisioni prese e i requisiti** del progetto, così da poter ricostruire
 il contesto completo in una sessione futura (anche da parte di un assistente AI) senza rileggere la cronologia.
 
-> Ultimo aggiornamento: 2026-10-15 — stato: **v0.7.0 — durata di ripresa e pausa configurabili; MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
+> Ultimo aggiornamento: 2026-10-16 — stato: **v0.8.0 — gestione del pareggio (ripresa supplementare, poi giudici); durata di ripresa e pausa configurabili; MVP verificato; ring configurabili; regole IFMA/IBA; versione nell'header; certificati di vittoria e attestati di partecipazione PDF in stile Sak Yant; layout verificato su iPhone 17** (vedi [§ 8](#8-stato-attuale)).
 
 ---
 
@@ -51,6 +51,7 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | D22 | Attestati di partecipazione | **Un attestato PDF per ogni partecipante non sul podio**, oltre ai certificati di vittoria | Richiesto dall'utente: nessuno torna a casa a mani vuote. |
 | D23 | Stile dei certificati | **Pergamena con inchiostro marrone scuro e Sak Yant**, come la locandina dell'evento. Pannello sinistro: **Suea Koo** (due tigri gemelle rampanti a strisce che si fronteggiano, Unalom e piccola yant al centro, colonne e archi di scrittura). Pannello destro: **testa di elefante Erawan frontale e ornata** (aureola di foglie kranok, mandala sulla fronte, catene di perle, pendenti, zanne, proboscide arricciata con gioielli). Unalom e righe di scrittura in stile Khom in entrambi | Scelta dell'utente tra 3 opzioni, poi affinata su immagini di riferimento fornite dall'utente (v0.6.1). Le figure sono reinterpretazioni vettoriali originali, non copie dei riferimenti né ritagli della locandina: restano nitide in stampa e si possono pubblicare nel repository. Vincitori: cintura oro/argento/bronzo al centro. Partecipanti: Mongkhon rosso e bianco con "มวยไทย" e nastro "PARTECIPANTE". |
 | D24 | Durata di ripresa e pausa | **Configurabili nel setup a scatti di 30"**: ripresa da 30" a 5' (default 2'), pausa da 30" a 3' (default 1'); fissate all'avvio del torneo | Richiesto dall'utente. Formato "2'", "1'30"", "30"". Solo informative (nessun timer, D6): appaiono nel setup con la durata stimata dell'incontro e sotto ogni ring ("3 riprese da 2' · 1' di pausa"; con una sola ripresa la pausa non viene mostrata). |
+| D25 | Pareggio | **Pulsante "Pareggio" sul ring → ripresa supplementare sullo stesso ring; se è ancora pari → decisione obbligatoria dei giudici.** Durata della ripresa supplementare configurabile (default = durata della ripresa) | Emerso nel primo torneo reale (15/10/2026): in un torneo light il pareggio è possibile. Scelta dell'utente tra: supplementare + giudici, solo giudici, sorteggio, configurabile. Il tabellone non cambia: un vincitore serve sempre. |
 
 ### Decisioni implementative prese in autonomia (coerenti con le scelte sopra)
 
@@ -79,6 +80,9 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 | I21 | Lo sfondo comune (pergamena, cornice, pannelli Sak Yant) viene disegnato **una sola volta** e copiato in ogni certificato; i certificati compaiono **uno alla volta** (prima il podio) e il canvas viene liberato subito dopo l'esportazione | Prestazioni e memoria su iPhone/iPad con 30+ atleti. Misurato: 10 PDF in ~0,35 s su WebKit desktop. |
 | I22 | Il testo "มวยไทย" (Muay Thai in thai) usa i font di sistema Thonburi (Apple) o Noto Sans Thai / Leelawadee (Android/Windows) | Nessun font da scaricare; resta leggibile offline. |
 | I23 | **Migrazione dei dati salvati** in `parseState` (store.ts): tornei e bozze salvati prima della v0.7.0 senza durate ricevono 2' / 1' | Il torneo in corso sul tablet non si rompe con l'aggiornamento. Coperto da test. |
+| I24 | Il risultato registra **come è stato deciso** (`decision`: normale, dopo supplementare, giudici); i pareggi in corso sono in `draws` (1 = supplementare, 2 = giudici) | Avanzamento, ring, podio e certificati restano invariati. Ultimi risultati e tabellone mostrano "· dopo ripresa supplementare" / "giudici". |
+| I25 | "↶ Annulla pareggio" torna indietro di un passo; annullando un risultato l'incontro torna allo stadio di pareggio in cui era; annullando un risultato che alimenta un incontro successivo, si azzerano i pareggi di quell'incontro | Gli atleti dell'incontro successivo potrebbero cambiare. |
+| I26 | Migrazione: tornei salvati prima della v0.8.0 ricevono `draws: {}` ed `extraRoundSeconds` = durata della ripresa; i risultati senza `decision` valgono come normali | Coperto da test. |
 
 ---
 
@@ -109,6 +113,13 @@ Le domande sono state poste all'utente una alla volta; qui la risposta scelta e 
 - **RF-16** Ring senza incontro: messaggio di attesa che si concludano gli incontri in corso.
 - **RF-17** Elenco "Prossimi incontri" con riferimenti ancora da definire ("Vincente inc. N", "Perdente inc. N").
 - **RF-18** Elenco "Ultimi risultati" (ultimi 6) con il pulsante "Annulla" dove consentito.
+
+### Pareggio
+- **RF-18a** Su ogni ring, il pulsante "Pareggio" (con conferma) manda l'incontro alla ripresa supplementare sullo stesso ring; un banner mostra lo stato e la durata.
+- **RF-18b** In ripresa supplementare il pulsante diventa "Ancora pari": con conferma l'incontro passa alla decisione obbligatoria dei giudici (nessun altro pareggio possibile).
+- **RF-18c** "↶ Annulla pareggio" torna indietro di un passo finché il vincitore non è registrato.
+- **RF-18d** Il vincitore si sceglie sempre toccando l'angolo rosso o blu; il risultato riporta la modalità ("dopo ripresa supplementare", "decisione dei giudici") in ultimi risultati e tabellone.
+- **RF-18e** Nel setup si imposta la durata della ripresa supplementare (30"–5', default 2').
 
 ### Correzione
 - **RF-19** Annullare un risultato solo se nessun incontro che dipende da esso (successivo o finale 3° posto) ha già un risultato; con conferma.
@@ -265,6 +276,7 @@ indirizzo pubblicato: **<https://muflonerd.github.io/muaythai_tournament/>**
 - ✅ Attestati di partecipazione e stile Sak Yant (v0.6.0): 75 test verdi; verificato in WebKit su iPhone 17 e tablet con 10 atleti (3 certificati + 7 attestati, condivisione per gruppo, nessun overflow).
 - ✅ Suea Koo ed Erawan ridisegnati secondo i riferimenti dell'utente (v0.6.1): 16 PDF generati in ~0,4 s in WebKit su iPhone 17, senza errori.
 - ✅ Durata di ripresa e pausa configurabili (v0.7.0): 90 test verdi (validazione, formato, migrazione dei dati salvati); verificato in WebKit su iPhone 17 e tablet, compresa la riapertura di un torneo salvato dalla v0.6.1.
+- ✅ Gestione del pareggio (v0.8.0): 101 test verdi; flusso completo verificato in WebKit su iPhone 17 e tablet (pareggio, ancora pari, giudici, annulla pareggio, ricarica, annullamento del risultato, badge nel tabellone).
 - ✅ Numero di ring configurabile (1–4) verificato nel browser con 7 partecipanti e 3 ring.
 - ✅ UI: impostazioni/partecipanti, vista Ring, tabellone, podio, dialog di conferma.
 - ✅ PWA: manifest, icone, service worker; verificata la build con il base path di GitHub Pages.

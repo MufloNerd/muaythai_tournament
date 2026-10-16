@@ -20,6 +20,18 @@ describe('parseState', () => {
     expect(s.tournament).toMatchObject({ roundsPerMatch: 5, roundSeconds: 120, pauseSeconds: 60 })
   })
 
+  it('migrates tournaments saved before draws were handled', () => {
+    const old = { tournament: { roundsPerMatch: 3, roundSeconds: 90, pauseSeconds: 30, results: {} } }
+    const s = parseState(JSON.stringify(old))
+    expect(s.tournament).toMatchObject({ extraRoundSeconds: 90, draws: {} })
+    expect(s.draft.extraRoundSeconds).toBe(120)
+  })
+
+  it('keeps saved draws and extra round length', () => {
+    const saved = { tournament: { roundSeconds: 120, extraRoundSeconds: 60, draws: { 'r0-m0': 1 } } }
+    expect(parseState(JSON.stringify(saved)).tournament).toMatchObject({ extraRoundSeconds: 60, draws: { 'r0-m0': 1 } })
+  })
+
   it('keeps saved durations', () => {
     const saved = {
       draft: { roundSeconds: 90, pauseSeconds: 30 },

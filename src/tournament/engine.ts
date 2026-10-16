@@ -1,5 +1,6 @@
 import type {
   Corner,
+  Decision,
   Fighter,
   MatchDef,
   ResolvedMatch,
@@ -119,6 +120,7 @@ export function createTournament(params: {
   roundsPerMatch: number
   roundSeconds?: number
   pauseSeconds?: number
+  extraRoundSeconds?: number
   fighters: Fighter[]
   ringCount?: number
   thirdPlaceMatch?: boolean
@@ -130,6 +132,7 @@ export function createTournament(params: {
     roundsPerMatch,
     roundSeconds = DEFAULT_ROUND_SECONDS,
     pauseSeconds = DEFAULT_PAUSE_SECONDS,
+    extraRoundSeconds = roundSeconds,
     fighters,
     ringCount = RING_COUNT,
     thirdPlaceMatch = true,
@@ -144,6 +147,9 @@ export function createTournament(params: {
     Number.isInteger(s) && s >= min && s <= max && s % DURATION_STEP_SECONDS === 0
   if (!validDuration(roundSeconds, ROUND_SECONDS_RANGE)) throw new Error('Durata della ripresa non valida')
   if (!validDuration(pauseSeconds, PAUSE_SECONDS_RANGE)) throw new Error('Durata della pausa non valida')
+  if (!validDuration(extraRoundSeconds, ROUND_SECONDS_RANGE)) {
+    throw new Error('Durata della ripresa supplementare non valida')
+  }
 
   const size = bracketSize(fighters.length)
   const firstRoundMatches = size / 2
@@ -191,9 +197,11 @@ export function createTournament(params: {
     roundsPerMatch,
     roundSeconds,
     pauseSeconds,
+    extraRoundSeconds,
     fighters,
     matches,
     results: {},
+    draws: {},
     rings: Array(ringCount).fill(null),
     startedAt: now,
   })
@@ -293,15 +301,56 @@ export function fillRings(t: Tournament): Tournament {
   return { ...t, rings }
 }
 
-export function recordWinner(t: Tournament, matchId: string, winner: Corner, now = Date.now()): Tournament {
+export const MAX_DRAWS = 2
+
+/** 0 = regular time, 1 = extra round after a draw, 2 = judges' decision after a second draw. */
+export function drawStage(t: Pick<Tournament, 'draws'>, matchId: string): number {
+  return t.draws?.[matchId] ?? 0
+}
+
+export const DECISIONS: Decision[] = ['regular', 'extra-round', 'judges']
+
+export function decisionLabel(decision: Decision | undefined): string | null {
+  if (decision === 'extra-round') return 'dopo ripresa supplementare'
+  if (decision === 'judges') return 'decisione dei giudici'
+  return null
+}
+
+function readyMatch(t: Tournament, matchId: string) {
   const match = resolve(t).find((m) => m.def.id === matchId)
   if (!match || match.status !== 'ready') throw new Error('Incontro non disponibile')
+  return match
+}
+
+export function recordWinner(t: Tournament, matchId: string, winner: Corner, now = Date.now()): Tournament {
+  readyMatch(t, matchId)
   const ringIndex = t.rings.indexOf(matchId)
+  const decision = DECISIONS[drawStage(t, matchId)]
   return fillRings({
     ...t,
-    results: { ...t.results, [matchId]: { winner, ring: ringIndex >= 0 ? ringIndex : null, at: now } },
+    results: { ...t.results, [matchId]: { winner, ring: ringIndex >= 0 ? ringIndex : null, at: now, decision } },
     rings: t.rings.map((id) => (id === matchId ? null : id)),
   })
+}
+
+/**
+ * A draw sends the bout to an extra round; a second draw leaves the decision to the judges.
+ * The bout keeps its ring and the bracket is unaffected: a winner is still required.
+ */
+export function declareDraw(t: Tournament, matchId: string): Tournament {
+  readyMatch(t, matchId)
+  const stage = drawStage(t, matchId)
+  if (stage >= MAX_DRAWS) throw new Error('Dopo due pareggi decidono i giudici')
+  return { ...t, draws: { ...t.draws, [matchId]: stage + 1 } }
+}
+
+export function undoDraw(t: Tournament, matchId: string): Tournament {
+  const stage = drawStage(t, matchId)
+  if (stage === 0 || t.results[matchId]) throw new Error('Nessun pareggio da annullare')
+  const draws = { ...t.draws }
+  if (stage === 1) delete draws[matchId]
+  else draws[matchId] = stage - 1
+  return { ...t, draws }
 }
 
 function dependents(t: Tournament, matchId: string): MatchDef[] {
@@ -323,7 +372,9 @@ export function undoResult(t: Tournament, matchId: string): Tournament {
   if (removed.ring !== null && removed.ring < rings.length && rings[removed.ring] === null) {
     rings[removed.ring] = matchId
   }
-  return fillRings({ ...t, results, rings })
+  // Draws on the following bouts referred to fighters that may no longer be there.
+  const draws = Object.fromEntries(Object.entries(t.draws ?? {}).filter(([id]) => !deps.has(id)))
+  return fillRings({ ...t, results, rings, draws })
 }
 
 /** Most recent undoable results first. */
